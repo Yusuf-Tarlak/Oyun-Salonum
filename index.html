@@ -1035,6 +1035,8 @@ body{background:var(--body-bg);}
 // GLOBALS
 // ============================================================
 let currentUser=null;         // Firebase auth user (null = guest)
+let fbAuth=null;              // Firebase Auth instance
+let fbDb=null, myRoomRef=null; // Firebase DB
 let myPeer=null, myConn=null; // for guests: single conn to host
 let hostConns=[];             // for host: array of conns to guests
 let myName='', myIdx=0;       // myIdx = seat index (0=host)
@@ -1049,7 +1051,15 @@ const MULTI_GAMES=['uno','okey'];
 // ============================================================
 // SCREEN
 // ============================================================
-function showSc(id){document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');s.style.display='none';});const e=document.getElementById('screen-'+id);e.style.display='flex';e.classList.add('active');}
+function showSc(id){
+  document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');s.style.display='none';});
+  const e=document.getElementById('screen-'+id);
+  if(e){e.style.display='flex';e.classList.add('active');}
+  // Home ekranına gelinince odaları yenile
+  if(id==='home' && fbDb){
+    fbDb.ref('rooms').once('value').then(snap=>renderRooms(snap.val()||{}));
+  }
+}
 
 // ============================================================
 // LOBBY / HOME
@@ -1355,6 +1365,17 @@ function recordMatchForCurrentPlayer(win, rankings){
   s.history=s.history.slice(0,12); saveStats(name,s); updateProfileUI();
 }
 
+function changeTheme(t){applyTheme(t);}
+function applyTheme(theme){
+  currentTheme=theme||'classic';
+  localStorage.setItem('oyunSalonuTheme',currentTheme);
+  document.body.classList.remove('theme-classic','theme-night','theme-emerald','theme-royal','theme-casino','theme-light');
+  document.body.classList.add('theme-'+currentTheme);
+  ['main-theme-select','profile-theme-select'].forEach(id=>{
+    const sel=document.getElementById(id);
+    if(sel) sel.value=currentTheme;
+  });
+}
 function initEnhancementUI(){applyTheme(currentTheme); updateProfileUI(); const uname=document.getElementById('uname'); if(uname && !uname._bindProfile){uname._bindProfile=true; uname.addEventListener('input',updateProfileUI);} }
 const _origStartGame = startGame;
 startGame = function(g){ _origStartGame(g); setTimeout(()=>{updateProfileUI(); if(g==='uno') renderUno(); if(g==='okey') renderOkey();},0); };
@@ -1406,7 +1427,6 @@ renderOkey = function(){ __renderOkeyBase(); const mode=document.getElementById(
 initEnhancementUI();
 setTimeout(initEnhancementUI,0);
 
-showSc('home');
 function leaveGame(){leaveHome();}
 function copyCode(){navigator.clipboard.writeText(roomCode).then(()=>toast('Kopyalandı: '+roomCode));}
 function setSt(p,s,t){document.getElementById('dot-'+p).className='dot '+s;document.getElementById('sttxt-'+p).textContent=t;}
@@ -2813,7 +2833,6 @@ publishRoom=function(){
 // ============================================================
 // FIREBASE AUTH
 // ============================================================
-let fbAuth=null;
 function initAuth(){
   try{
     fbAuth=firebase.auth();
@@ -2853,7 +2872,7 @@ function initAuth(){
         showSc('auth');
       }
     });
-  }catch(e){console.error('Auth:',e);showSc('home');}
+  }catch(e){console.error('Auth:',e);showSc('auth');}
 }
 function switchAuthTab(tab){
   document.getElementById('auth-tab-login').classList.toggle('active',tab==='login');
@@ -2868,7 +2887,16 @@ function authErrMsg(code){
   return({'auth/user-not-found':'Bu e-posta ile hesap bulunamadı.','auth/wrong-password':'Şifre yanlış.','auth/invalid-email':'Geçersiz e-posta.','auth/email-already-in-use':'Bu e-posta zaten kayıtlı.','auth/weak-password':'Şifre en az 6 karakter olmalı.','auth/too-many-requests':'Çok fazla deneme. Lütfen bekleyin.','auth/invalid-credential':'E-posta veya şifre hatalı.','auth/network-request-failed':'Bağlantı hatası.'}[code]||'Bir hata oluştu.');
 }
 function authLogin(){
-  if(!fbAuth){showAuthErr('auth-login-err','Bağlantı hatası. Sayfayı yenileyin.');return;}
+  if(!fbAuth){
+    const btn=document.getElementById('auth-login-btn');
+    if(btn){btn.disabled=true;btn.querySelector('span').textContent='Bağlanıyor...';}
+    setTimeout(()=>{
+      if(btn){btn.disabled=false;btn.querySelector('span').textContent='Giriş Yap →';}
+      if(!fbAuth){showAuthErr('auth-login-err','Bağlantı hatası. Sayfayı yenileyin.');return;}
+      authLogin();
+    },1500);
+    return;
+  }
   const email=document.getElementById('auth-login-email').value.trim();
   const pass=document.getElementById('auth-login-pass').value;
   if(!email||!pass){showAuthErr('auth-login-err','E-posta ve şifre gerekli.');return;}
@@ -2879,7 +2907,17 @@ function authLogin(){
     .catch(e=>{showAuthErr('auth-login-err',authErrMsg(e.code));btn.disabled=false;btn.querySelector('span').textContent='Giriş Yap →';});
 }
 function authRegister(){
-  if(!fbAuth){showAuthErr('auth-reg-err','Bağlantı hatası. Sayfayı yenileyin.');return;}
+  if(!fbAuth){
+    // Firebase henüz hazır değil, kısa süre bekle
+    const btn=document.getElementById('auth-reg-btn');
+    if(btn){btn.disabled=true;btn.querySelector('span').textContent='Bağlanıyor...';}
+    setTimeout(()=>{
+      if(btn){btn.disabled=false;btn.querySelector('span').textContent='Kayıt Ol →';}
+      if(!fbAuth){showAuthErr('auth-reg-err','Bağlantı hatası. Sayfayı yenileyin.');return;}
+      authRegister();
+    },1500);
+    return;
+  }
   const name=document.getElementById('auth-reg-name').value.trim();
   const email=document.getElementById('auth-reg-email').value.trim();
   const pass=document.getElementById('auth-reg-pass').value;
@@ -2921,6 +2959,10 @@ function authLogout(){
 }
 function authGuest(){
   currentUser=null;
+  // Eğer fbAuth varsa oturumu kapat (başka hesap açıksa)
+  if(fbAuth && fbAuth.currentUser){
+    fbAuth.signOut().catch(()=>{});
+  }
   const inp=document.getElementById('uname');
   if(inp){inp.value='';inp.removeAttribute('readonly');inp.style.opacity='1';inp.style.cursor='';}
   const av=document.getElementById('auth-avatar-home');
@@ -2932,6 +2974,10 @@ function authGuest(){
   if(em)em.textContent='Kayıt olmadan oynuyorsun';
   if(btn)btn.textContent='Giriş Yap';
   showSc('home');
+  // Firebase bağlıysa odaları yükle
+  if(fbDb){
+    fbDb.ref('rooms').once('value').then(snap=>renderRooms(snap.val()||{}));
+  }
 }
 function authBarAction(){
   if(currentUser) authLogout();
@@ -2939,16 +2985,15 @@ function authBarAction(){
 }
 
 const FB_CONFIG = {
-  apiKey: "AIzaSyAIR7iRIvr_3HhSiwo0czBFC1gKmSlXtt4",
-  authDomain: "oyun-salonu-5cc51.firebaseapp.com",
-  databaseURL: "https://oyun-salonu-5cc51-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "oyun-salonu-5cc51",
-  storageBucket: "oyun-salonu-5cc51.firebasestorage.app",
-  messagingSenderId: "843650255054",
-  appId: "1:843650255054:web:dabccce0d20cfb4df4689f"
+  apiKey: "AIzaSyC2XwMEbST0Q2yUPPedMiLltMRA_wsZ7Cw",
+  authDomain: "oyun-salonu-v2.firebaseapp.com",
+  databaseURL: "https://oyun-salonu-v2-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "oyun-salonu-v2",
+  storageBucket: "oyun-salonu-v2.firebasestorage.app",
+  messagingSenderId: "147878357962",
+  appId: "1:147878357962:web:88576f26acccf14ab23d33"
 };
 
-let fbDb=null, myRoomRef=null;
 
 function initFirebase(){
   try{
@@ -2962,10 +3007,14 @@ function initFirebase(){
     // Init auth after DB ready
     initAuth();
   }catch(e){
-    console.error('Firebase:',e);
-    document.getElementById('fb-status-txt').textContent='Bağlantı hatası';
-    document.getElementById('rooms-list').innerHTML='<div class="rooms-empty">Oda listesi yüklenemedi.</div>';
-    showSc('home'); // Fallback
+    console.error('Firebase init error:',e);
+    const st=document.getElementById('fb-status-txt');
+    if(st) st.textContent='Bağlantı hatası';
+    const rl=document.getElementById('rooms-list');
+    if(rl) rl.innerHTML='<div class="rooms-empty">Firebase bağlanamadı.</div>';
+    // Firebase olmadan misafir modda çalış
+    fbDb=null; fbAuth=null;
+    showSc('auth');
   }
 }
 
@@ -2982,11 +3031,17 @@ function renderRooms(data){
   if(!list)return;
   const now=Date.now();
   const rooms=Object.entries(data)
-    .filter(([k,v])=>v&&v.code&&(now-(v.createdAt||0))<300000&&!v.isPrivate)
+    .filter(([k,v])=>{
+      if(!v||!v.code) return false;
+      if(v.isPrivate) return false;
+      // createdAt yoksa veya 0 ise göster (yeni oda), çok eskiyse gizle
+      if(v.createdAt && v.createdAt>0 && (now-v.createdAt)>600000) return false;
+      return true;
+    })
     .sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
 
   if(rooms.length===0){
-    list.innerHTML='<div class="rooms-empty">Henüz açık oda yok.<br>İlk odayı sen aç!</div>';
+    list.innerHTML='<div class="rooms-empty">Henüz açık oda yok.<br>Bir oyun seçip <b>Oda Oluştur</b> butonuna bas!</div>';
     return;
   }
   list.innerHTML='';
@@ -3036,7 +3091,7 @@ function publishRoom(){
     hostName:myName,
     maxPlayers:maxPlayers,
     playerCount:1,
-    createdAt:firebase.database.ServerValue.TIMESTAMP
+    createdAt:Date.now()
   });
   myRoomRef.onDisconnect().remove();
 }
@@ -3089,8 +3144,15 @@ hostStartGame=function(){
   _fbOrigHostStart();
 };
 
-// Init
-initFirebase();
+// Init - Firebase scriptleri yüklendikten sonra başlat
+function safeInitFirebase(){
+  if(typeof firebase === 'undefined'){
+    setTimeout(safeInitFirebase, 100);
+    return;
+  }
+  initFirebase();
+}
+safeInitFirebase();
 // showSc handled by auth state change
 
 // ============================================================
