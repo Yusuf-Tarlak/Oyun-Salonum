@@ -1,0 +1,3153 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oyun Salonu</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d2a1f;--s:#123527;--s2:#184330;--bd:#2b5a44;
+  --gold:#c9a84c;--gold2:#e8cc7a;--red:#c0392b;--blue:#2471a3;
+  --green:#1e8449;--purple:#7d3c98;--orange:#ca6f1e;
+  --cream:#f5f0e8;--text:#ddd8cc;--muted:#5a5470;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--body-bg,radial-gradient(circle at top,#2a6c4d 0%,#103222 45%,#081610 100%));color:var(--text);font-family:'Crimson Pro',serif;min-height:100vh;overflow-x:hidden;transition:background .4s ease,color .4s ease;}
+body::before{content:'';position:fixed;inset:0;background:
+  radial-gradient(ellipse at 15% 40%,rgba(201,168,76,0.05) 0%,transparent 55%),
+  radial-gradient(ellipse at 85% 60%,rgba(36,113,163,0.05) 0%,transparent 55%);
+  pointer-events:none;z-index:0;}
+.screen{display:none;position:relative;z-index:1;min-height:100vh;flex-direction:column;align-items:center;}
+.screen.active{display:flex;}
+
+/* TYPOGRAPHY */
+.site-title{font-family:'Cinzel',serif;font-size:clamp(2.2rem,8vw,4.5rem);font-weight:900;letter-spacing:0.15em;color:var(--gold);text-shadow:0 0 50px rgba(201,168,76,0.35);text-align:center;padding:40px 20px 8px;}
+.site-sub{font-size:0.82rem;letter-spacing:0.4em;text-transform:uppercase;color:var(--muted);text-align:center;padding-bottom:18px;}
+.gold-line{width:180px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:0 auto 22px;}
+.ptitle{font-family:'Cinzel',serif;font-size:0.95rem;color:var(--gold);letter-spacing:0.15em;margin-bottom:14px;text-align:center;}
+.smalllbl{font-family:'Cinzel',serif;font-size:0.65rem;color:var(--muted);text-align:center;letter-spacing:0.18em;text-transform:uppercase;margin:6px 0;}
+
+/* GAME CARDS */
+.game-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:13px;width:100%;max-width:820px;padding:0 18px;}
+.gc{background:var(--s);border:1px solid var(--bd);border-radius:14px;padding:22px 14px;text-align:center;cursor:pointer;transition:all 0.28s;position:relative;overflow:hidden;}
+.gc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0;transition:opacity 0.28s;}
+.gc:hover,.gc.sel{border-color:var(--gold);transform:translateY(-3px);box-shadow:0 0 22px rgba(201,168,76,0.22);}
+.gc:hover::before,.gc.sel::before{opacity:1;}
+.gi{font-size:2.6rem;display:block;margin-bottom:10px;}
+.gt{font-family:'Cinzel',serif;font-size:0.95rem;color:var(--gold2);margin-bottom:5px;letter-spacing:0.1em;}
+.gd{font-size:0.76rem;color:var(--muted);line-height:1.4;}
+.gbadge{display:inline-block;font-size:0.58rem;letter-spacing:0.15em;background:rgba(201,168,76,0.12);color:var(--gold);border:1px solid rgba(201,168,76,0.25);border-radius:20px;padding:2px 8px;margin-top:6px;font-family:'Cinzel',serif;}
+
+/* PANEL */
+.themebar{display:flex;justify-content:center;padding:0 18px 12px;}
+.themebox{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;background:var(--s);border:1px solid var(--bd);border-radius:12px;padding:10px 12px;box-shadow:0 10px 24px rgba(0,0,0,.16);}
+.themebox label{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.18em;color:var(--muted);text-transform:uppercase;}
+.themebox select{min-width:210px;max-width:240px;padding:8px 10px;font-size:.92rem;}
+.theme-preview{display:flex;gap:6px;align-items:center;}
+.theme-dot{width:14px;height:14px;border-radius:50%;border:1px solid rgba(255,255,255,.22);box-shadow:0 1px 4px rgba(0,0,0,.18);}
+body.theme-light .theme-dot{border-color:rgba(0,0,0,.12);}
+.panel{background:var(--s);border:1px solid var(--bd);border-radius:14px;padding:22px;width:100%;max-width:440px;margin:16px;position:relative;}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);}
+
+/* INPUTS */
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+.field label{font-size:0.65rem;letter-spacing:0.25em;text-transform:uppercase;color:var(--muted);}
+input[type=text]{background:var(--s2);border:1px solid var(--bd);border-radius:7px;color:var(--text);font-family:'Crimson Pro',serif;font-size:1rem;padding:9px 12px;width:100%;outline:none;transition:border-color 0.2s;}
+input[type=text]:focus{border-color:var(--gold);}
+input::placeholder{color:var(--muted);}
+select{background:var(--s2);border:1px solid var(--bd);border-radius:7px;color:var(--text);font-family:'Crimson Pro',serif;font-size:1rem;padding:9px 12px;width:100%;outline:none;transition:border-color 0.2s;cursor:pointer;}
+select:focus{border-color:var(--gold);}
+
+/* TABS */
+.tabs{display:flex;gap:3px;margin-bottom:14px;background:var(--s2);border-radius:7px;padding:3px;}
+.tab{flex:1;padding:8px;text-align:center;cursor:pointer;border-radius:5px;font-family:'Cinzel',serif;font-size:0.7rem;letter-spacing:0.1em;color:var(--muted);transition:all 0.2s;}
+.tab.active{background:var(--bd);color:var(--gold2);}
+
+/* BUTTONS */
+.btn{background:transparent;border:1px solid var(--gold);border-radius:7px;color:var(--gold);font-family:'Cinzel',serif;font-size:0.76rem;letter-spacing:0.1em;padding:11px 20px;cursor:pointer;transition:all 0.22s;width:100%;position:relative;overflow:hidden;}
+.btn::after{content:'';position:absolute;inset:0;background:var(--gold);transform:scaleX(0);transform-origin:left;transition:transform 0.22s;z-index:0;}
+.btn:hover::after{transform:scaleX(1);}
+.btn:hover{color:var(--bg);}
+.btn span{position:relative;z-index:1;}
+.btn.sec{border-color:var(--blue);color:var(--blue);}
+.btn.sec::after{background:var(--blue);}
+.btn.dan{border-color:var(--red);color:var(--red);}
+.btn.dan::after{background:var(--red);}
+.btn.grn{border-color:var(--green);color:var(--green);}
+.btn.grn::after{background:var(--green);}
+.btn:disabled{opacity:0.3;cursor:not-allowed;}
+.btn:disabled::after{display:none;}
+.brow{display:flex;gap:8px;}
+.brow .btn{flex:1;}
+.smb{background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--text);font-family:'Cinzel',serif;font-size:0.68rem;letter-spacing:0.08em;padding:7px 14px;cursor:pointer;transition:all 0.18s;white-space:nowrap;}
+.smb:hover{border-color:var(--gold);color:var(--gold);}
+.smb:disabled{opacity:0.28;cursor:not-allowed;}
+.smb.pri{border-color:var(--green);color:var(--green);}
+.smb.pri:hover{background:var(--green);color:var(--bg);}
+
+/* STATUS */
+.rcbox{background:var(--s2);border:1px solid var(--gold);border-radius:9px;padding:13px;text-align:center;margin:11px 0;}
+.rclbl{font-size:0.6rem;letter-spacing:0.3em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+.rcval{font-family:'Cinzel',serif;font-size:2rem;letter-spacing:0.4em;color:var(--gold2);cursor:pointer;}
+.rchint{font-size:0.6rem;color:var(--muted);margin-top:4px;}
+.strow{display:flex;align-items:center;gap:7px;font-size:0.66rem;color:var(--muted);margin-top:8px;letter-spacing:0.1em;}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;}
+.dot.cn{background:#e67e22;animation:blink .7s infinite;}
+.dot.ok{background:var(--green);}
+.dot.er{background:var(--red);}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.15;}}
+.wdots{display:flex;justify-content:center;gap:9px;margin:16px 0;}
+.wd{width:10px;height:10px;border-radius:50%;background:var(--gold);animation:bou 1.2s ease-in-out infinite;}
+.wd:nth-child(2){animation-delay:.2s;}.wd:nth-child(3){animation-delay:.4s;}
+@keyframes bou{0%,100%{transform:translateY(0);opacity:.35;}50%{transform:translateY(-12px);opacity:1;}}
+
+/* LOBBY (multi player) */
+.lobby-players{display:flex;flex-direction:column;gap:8px;margin:12px 0;}
+.lp-slot{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;transition:border-color 0.2s;}
+.lp-slot.filled{border-color:var(--green);}
+.lp-slot.host-slot{border-color:rgba(201,168,76,0.4);}
+.lp-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}
+.lp-name{font-family:'Cinzel',serif;font-size:0.82rem;color:var(--text);flex:1;}
+.lp-badge{font-size:0.58rem;letter-spacing:0.12em;color:var(--gold);font-family:'Cinzel',serif;}
+.lp-empty{color:var(--muted);font-style:italic;font-size:0.8rem;}
+.lobby-progress{height:4px;background:var(--bd);border-radius:2px;overflow:hidden;margin:8px 0;}
+.lobby-prog-bar{height:100%;background:linear-gradient(90deg,var(--green),var(--gold));border-radius:2px;transition:width 0.4s ease;}
+
+/* GAME HEADER */
+.ghdr{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:720px;padding:11px 16px;background:var(--s);border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:10;}
+.ghtitle{font-family:'Cinzel',serif;font-size:0.92rem;color:var(--gold);letter-spacing:0.1em;}
+.backbtn{background:none;border:1px solid var(--bd);border-radius:5px;color:var(--muted);font-family:'Cinzel',serif;font-size:0.66rem;letter-spacing:0.08em;padding:5px 11px;cursor:pointer;transition:all 0.18s;}
+.backbtn:hover{border-color:var(--gold);color:var(--gold);}
+
+/* SCOREBOARD */
+.scoreboard{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:100%;max-width:700px;padding:8px 16px;}
+.pcard{background:var(--s);border:1px solid var(--bd);border-radius:9px;padding:8px 12px;display:flex;flex-direction:column;gap:2px;min-width:90px;transition:border-color 0.2s;}
+.pcard.active-turn{border-color:var(--gold);box-shadow:0 0 12px rgba(201,168,76,0.2);}
+.pcard.me{border-color:rgba(30,132,73,0.5);}
+.pcard.out{opacity:0.4;}
+.pc-lbl{font-size:0.55rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);}
+.pc-name{font-family:'Cinzel',serif;font-size:0.82rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px;}
+.pc-info{font-size:0.7rem;color:var(--gold2);}
+
+.turnbar{width:100%;max-width:700px;margin:0 16px 7px;text-align:center;padding:8px 16px;border-radius:7px;font-size:0.7rem;letter-spacing:0.13em;text-transform:uppercase;background:var(--s2);border:1px solid var(--bd);transition:all 0.3s;}
+.turnbar.my{border-color:var(--green);color:var(--green);background:rgba(30,132,73,0.07);}
+.turnbar.opp{border-color:var(--red);color:var(--red);background:rgba(192,57,43,0.06);}
+
+/* CHAT */
+.chatwrap{width:100%;max-width:700px;background:var(--s);border:1px solid var(--bd);border-radius:10px;padding:10px;margin:7px 16px;}
+.chatmsgs{background:var(--s2);border:1px solid var(--bd);border-radius:7px;height:80px;overflow-y:auto;padding:6px 10px;font-size:0.76rem;line-height:1.65;margin-bottom:6px;}
+.csys{color:var(--muted);font-style:italic;}
+.chatrow{display:flex;gap:6px;}
+.chatrow input{flex:1;font-size:0.82rem;padding:6px 10px;}
+.csend{background:none;border:1px solid var(--gold);border-radius:5px;color:var(--gold);font-family:'Cinzel',serif;font-size:0.65rem;padding:6px 12px;cursor:pointer;white-space:nowrap;transition:all 0.18s;}
+.csend:hover{background:var(--gold);color:var(--bg);}
+
+/* TOAST */
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--s);border:1px solid var(--gold);border-radius:7px;padding:10px 20px;font-size:0.76rem;color:var(--gold2);letter-spacing:0.1em;z-index:9999;transition:transform 0.28s;white-space:nowrap;max-width:90vw;}
+#toast.show{transform:translateX(-50%) translateY(0);}
+
+/* GAMEOVER */
+.gopanel{background:var(--s);border:1px solid var(--bd);border-radius:14px;padding:34px 26px;text-align:center;width:100%;max-width:420px;margin:18px;position:relative;}
+.gopanel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);}
+.gores{font-family:'Cinzel',serif;font-size:clamp(2.2rem,7vw,3.5rem);font-weight:900;letter-spacing:0.12em;margin-bottom:8px;}
+.gores.win{color:var(--gold2);text-shadow:0 0 30px rgba(232,204,122,0.5);}
+.gores.lose{color:var(--red);}
+.gores.draw{color:var(--blue);}
+.gosub{font-size:0.82rem;color:var(--muted);letter-spacing:0.1em;margin-bottom:20px;line-height:1.6;}
+.go-rankings{display:flex;flex-direction:column;gap:6px;margin:12px 0 18px;}
+.go-rank{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--s2);border:1px solid var(--bd);border-radius:7px;}
+.go-rank-pos{font-family:'Cinzel',serif;font-size:1.2rem;color:var(--gold);width:28px;}
+.go-rank-name{font-family:'Cinzel',serif;font-size:0.82rem;flex:1;}
+.go-rank-info{font-size:0.76rem;color:var(--muted);}
+
+/* DAMA */
+#dama-board{display:grid;grid-template-columns:repeat(8,1fr);border:2px solid var(--gold);border-radius:7px;overflow:hidden;width:100%;max-width:400px;box-shadow:0 0 22px rgba(201,168,76,0.12);}
+.dc{aspect-ratio:1;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.12s;position:relative;}
+.dc.L{background:#d4a96a;}.dc.D{background:#7a4e2d;}
+.dc.sel{background:rgba(39,174,96,0.7)!important;}
+.dc.vm{background:rgba(39,174,96,0.35)!important;}
+.dc.vm::after{content:'';width:28%;height:28%;border-radius:50%;background:rgba(39,174,96,0.8);position:absolute;}
+.piece{width:76%;height:76%;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform 0.12s;box-shadow:0 2px 6px rgba(0,0,0,0.5);position:relative;z-index:1;}
+.piece:hover{transform:scale(1.08);}
+.piece.W{background:radial-gradient(circle at 35% 35%,#f5f0e8,#c8c0b0);}
+.piece.B{background:radial-gradient(circle at 35% 35%,#555,#222);}
+.piece.king::after{content:'♛';position:absolute;font-size:.7em;color:var(--gold2);}
+
+/* SATRANÇ */
+#chess-board{display:grid;grid-template-columns:repeat(8,1fr);border:2px solid var(--gold);border-radius:7px;overflow:hidden;width:100%;max-width:400px;box-shadow:0 0 22px rgba(201,168,76,0.12);}
+.sq{aspect-ratio:1;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:clamp(1rem,3.2vw,1.7rem);user-select:none;}
+.sq.SL{background:#f0d9b5;}.sq.SD{background:#b58863;}
+.sq.ssel{background:rgba(20,160,20,0.6)!important;}
+.sq.svm{background:rgba(20,160,20,0.25)!important;}
+.sq.svm::after{content:'';width:28%;height:28%;border-radius:50%;background:rgba(20,160,20,0.6);position:absolute;}
+.sq.svm.hp::after{width:100%;height:100%;border-radius:0;background:rgba(200,20,20,0.22);border:2px solid rgba(200,20,20,0.55);}
+.sq.slm{background:rgba(255,220,0,0.28)!important;}
+.sq.schk{background:rgba(255,0,0,0.38)!important;}
+.cp{cursor:pointer;transition:transform 0.12s;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.6));}
+.cp:hover{transform:scale(1.12);}
+.cf,.cr{position:absolute;font-size:0.5rem;font-family:'Cinzel',serif;font-weight:700;opacity:0.65;}
+.cf{bottom:2px;right:2px;}.cr{top:2px;left:2px;}
+.mbg{position:fixed;inset:0;background:rgba(0,0,0,0.82);display:flex;align-items:center;justify-content:center;z-index:500;}
+.mod{background:var(--s);border:1px solid var(--gold);border-radius:14px;padding:26px;text-align:center;}
+.mod h3{font-family:'Cinzel',serif;color:var(--gold);font-size:0.95rem;margin-bottom:13px;letter-spacing:0.1em;}
+.promops{display:flex;gap:10px;justify-content:center;}
+.promop{font-size:2.5rem;cursor:pointer;padding:10px;border-radius:7px;border:1px solid var(--bd);transition:all 0.18s;}
+.promop:hover{border-color:var(--gold);background:var(--s2);}
+
+/* TAVLA */
+#tavla-board{background:#5c3317;border:3px solid var(--gold);border-radius:9px;padding:6px;width:100%;max-width:580px;box-shadow:0 0 22px rgba(201,168,76,0.15);}
+.trow{display:grid;grid-template-columns:1fr 32px 1fr 40px;gap:3px;align-items:stretch;}
+.thalf{display:grid;grid-template-columns:repeat(6,1fr);gap:2px;}
+.tpt{display:flex;flex-direction:column;align-items:center;min-height:125px;position:relative;cursor:pointer;border-radius:3px;transition:background 0.12s;padding:2px;}
+.tpt.top{flex-direction:column;}.tpt.bot{flex-direction:column-reverse;}
+.tpt.lt{background:linear-gradient(180deg,#c0392b 0%,transparent 65%);}
+.tpt.dt{background:linear-gradient(180deg,#e8cc7a 0%,transparent 65%);}
+.tpt.bot.lt{background:linear-gradient(0deg,#c0392b 0%,transparent 65%);}
+.tpt.bot.dt{background:linear-gradient(0deg,#e8cc7a 0%,transparent 65%);}
+.tpt.hi{background:rgba(30,132,73,0.32)!important;border:1px solid var(--green);}
+.ckr{width:88%;max-width:28px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.55rem;font-family:'Cinzel',serif;font-weight:700;margin:1px 0;flex-shrink:0;box-shadow:0 2px 4px rgba(0,0,0,0.5);}
+.ckr.W{background:radial-gradient(circle at 35% 35%,#f5f0e8,#c0b8a8);color:#333;}
+.ckr.B{background:radial-gradient(circle at 35% 35%,#666,#1a1a1a);color:#fff;}
+.barcol{display:flex;flex-direction:column;align-items:center;justify-content:space-between;background:#2a1505;border-radius:3px;padding:4px 2px;gap:3px;}
+.barp{width:24px;height:18px;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.5);}
+.barp.W{background:radial-gradient(circle at 35% 35%,#f5f0e8,#c0b8a8);}
+.barp.B{background:radial-gradient(circle at 35% 35%,#666,#1a1a1a);}
+.homecol{background:#2a1505;border-radius:3px;padding:4px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;}
+.homepc{width:28px;height:8px;border-radius:4px;margin:1px 0;}
+.homepc.W{background:radial-gradient(circle at 35% 35%,#f5f0e8,#c0b8a8);}
+.homepc.B{background:radial-gradient(circle at 35% 35%,#666,#1a1a1a);}
+.ptnum{font-family:'Cinzel',serif;font-size:0.4rem;color:rgba(255,255,255,0.28);position:absolute;}
+.tpt.top .ptnum{bottom:2px;}.tpt.bot .ptnum{top:2px;}
+.dicewrap{display:flex;gap:8px;justify-content:center;align-items:center;padding:5px 0;flex-wrap:wrap;}
+.die{width:38px;height:38px;background:var(--cream);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;box-shadow:0 3px 6px rgba(0,0,0,0.5);transition:all 0.12s;border:2px solid transparent;color:#1a1a1a;}
+.die.used{opacity:0.25;}
+.tavbtn{background:var(--s2);border:1px solid var(--bd);border-radius:5px;color:var(--text);font-family:'Cinzel',serif;font-size:0.66rem;letter-spacing:0.08em;padding:6px 13px;cursor:pointer;transition:all 0.18s;}
+.tavbtn:hover{border-color:var(--gold);color:var(--gold);}
+.tavbtn:disabled{opacity:0.28;cursor:not-allowed;}
+
+/* ===== UNO ===== */
+#uno-wrap{width:100%;max-width:700px;padding:0 10px;display:flex;flex-direction:column;gap:7px;}
+.uno-opponents{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:6px 0;}
+.uno-opp-area{background:var(--s);border:1px solid var(--bd);border-radius:9px;padding:8px 10px;min-width:100px;max-width:180px;flex:1;}
+.uno-opp-area.active-player{border-color:var(--gold);box-shadow:0 0 10px rgba(201,168,76,0.2);}
+.uno-opp-name{font-family:'Cinzel',serif;font-size:0.65rem;color:var(--gold2);letter-spacing:0.1em;margin-bottom:5px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.uno-opp-cards{display:flex;justify-content:center;gap:2px;flex-wrap:wrap;}
+.ucb{width:22px;height:34px;border-radius:4px;background:linear-gradient(135deg,#c0392b,#7b241c);border:1px solid rgba(255,255,255,0.15);}
+.uno-center{display:flex;gap:16px;justify-content:center;align-items:center;padding:8px 0;flex-wrap:wrap;}
+.udeck{width:52px;height:76px;border-radius:8px;background:linear-gradient(135deg,#c0392b,#922b21);border:2px solid rgba(255,255,255,0.25);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:transform 0.14s;box-shadow:0 4px 10px rgba(0,0,0,0.4);gap:2px;}
+.udeck:hover{transform:scale(1.06);}
+.udeck span{color:rgba(255,255,255,0.65);font-family:'Cinzel',serif;font-size:0.58rem;letter-spacing:0.1em;}
+.udiscard{width:52px;height:76px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-weight:700;box-shadow:0 4px 10px rgba(0,0,0,0.5);border:2px solid rgba(255,255,255,0.25);color:white;font-size:clamp(0.7rem,2vw,1rem);}
+.ucolor-badge{font-family:'Cinzel',serif;font-size:0.76rem;text-align:center;letter-spacing:0.1em;padding:4px 10px;background:var(--s2);border-radius:5px;border:1px solid var(--bd);}
+.uhand{display:flex;justify-content:center;gap:3px;flex-wrap:wrap;padding:8px 6px;background:var(--s);border:1px solid var(--bd);border-radius:9px;min-height:74px;}
+.ucard{width:44px;height:68px;border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;border:2px solid rgba(255,255,255,0.22);transition:all 0.16s;font-family:'Cinzel',serif;font-weight:700;font-size:0.88rem;box-shadow:0 2px 6px rgba(0,0,0,0.4);position:relative;user-select:none;color:white;}
+.ucard:hover{transform:translateY(-7px) scale(1.04);}
+.ucard.play{border-color:var(--gold);box-shadow:0 0 10px rgba(201,168,76,0.3);}
+.ucard.noplay{opacity:0.44;cursor:not-allowed;}
+.ucard .ts{position:absolute;top:3px;left:4px;font-size:0.55rem;}
+.ucard .bs{position:absolute;bottom:3px;right:4px;font-size:0.55rem;transform:rotate(180deg);}
+.colpick{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;padding:6px 0;}
+.colbtn{width:46px;height:46px;border-radius:50%;cursor:pointer;border:3px solid rgba(255,255,255,0.22);transition:transform 0.13s;font-family:'Cinzel',serif;font-size:0.58rem;font-weight:700;display:flex;align-items:center;justify-content:center;color:rgba(0,0,0,0.55);}
+.colbtn:hover{transform:scale(1.16);border-color:white;}
+.uno-actions{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;padding:4px 0;}
+.unoshout{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);font-family:'Cinzel',serif;font-size:clamp(3.5rem,12vw,6rem);font-weight:900;color:#e74c3c;text-shadow:0 0 40px rgba(231,76,60,0.7);z-index:300;pointer-events:none;transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1);}
+.unoshout.show{transform:translate(-50%,-50%) scale(1);}
+.uno-dir{font-family:'Cinzel',serif;font-size:0.72rem;color:var(--muted);text-align:center;letter-spacing:0.1em;}
+
+
+/* ===== UNO UX UPGRADE ===== */
+#uno-wrap{max-width:920px;gap:10px;}
+.uno-table{width:100%;background:radial-gradient(circle at 50% 35%,rgba(36,113,163,0.10),rgba(0,0,0,0) 35%),linear-gradient(180deg,#123527,#0f2f22);border:1px solid var(--bd);border-radius:18px;padding:14px;box-shadow:0 18px 36px rgba(0,0,0,0.22);}
+.uno-statusbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:rgba(0,0,0,0.12);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:10px 12px;margin-bottom:8px;}
+.uno-chip{padding:6px 10px;border-radius:999px;background:var(--s2);border:1px solid var(--bd);font-family:'Cinzel',serif;font-size:0.66rem;letter-spacing:0.08em;color:var(--gold2);}
+.uno-chip.warn{color:#ffd36b;border-color:rgba(255,211,107,0.35);}
+.uno-opponents{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;padding:8px 0 10px;}
+.uno-opp-area{min-width:0;max-width:none;padding:10px 10px 12px;}
+.uno-opp-area.active-player{transform:translateY(-2px);}
+.uno-center{background:rgba(0,0,0,0.10);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:12px 10px;gap:26px;}
+.udeck,.udiscard{width:74px;height:108px;border-radius:12px;}
+.udeck span{font-size:0.72rem;}
+.udiscard{font-size:1.15rem;padding:8px;text-align:center;line-height:1.05;}
+.uhand-wrap{background:rgba(0,0,0,0.14);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:10px;}
+.uhand-toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+.uhand{justify-content:flex-start;gap:8px;min-height:126px;padding:14px 10px;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin;background:linear-gradient(180deg,rgba(18,53,39,0.65),rgba(11,31,24,0.75));}
+.uhand::-webkit-scrollbar{height:10px;}
+.uhand::-webkit-scrollbar-thumb{background:rgba(201,168,76,0.35);border-radius:999px;}
+.uhand-meta{font-size:0.72rem;color:var(--muted);letter-spacing:0.06em;}
+.ucard{width:70px;height:106px;border-radius:14px;font-size:1.1rem;flex-shrink:0;border-width:3px;box-shadow:0 8px 16px rgba(0,0,0,0.35);}
+.ucard:hover{transform:translateY(-10px) scale(1.05);}
+.ucard.play{border-color:#f7df8d;box-shadow:0 0 0 2px rgba(247,223,141,0.22),0 10px 18px rgba(0,0,0,0.35);}
+.ucard.play::after{content:'OYNA';position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);font-size:0.52rem;letter-spacing:0.14em;background:#f7df8d;color:#1d1d1d;padding:2px 6px;border-radius:999px;opacity:0.95;}
+.ucard.dragging{opacity:0.35;transform:translateY(-12px) scale(1.06);}
+.ucard.touch-dragging{position:fixed;z-index:1200;pointer-events:none;box-shadow:0 16px 30px rgba(0,0,0,0.45);transform:translate(-50%,-50%) rotate(-4deg) scale(1.06);}
+.uno-center.drag-over #uno-discard,.udiscard.drag-over{outline:3px dashed #f7df8d;outline-offset:4px;transform:scale(1.08);box-shadow:0 0 0 4px rgba(247,223,141,0.12),0 10px 18px rgba(0,0,0,0.35);}
+@media (max-width: 768px){
+  .ucard.touch-dragging{width:64px;height:96px;}
+}
+
+.ucard.noplay{opacity:0.52;filter:saturate(0.8);}
+.ucard .ts,.ucard .bs{font-size:0.72rem;font-weight:900;}
+.ucard .uv{font-size:1.26rem;line-height:1;max-width:80%;text-align:center;word-break:break-word;}
+.uno-actions{justify-content:space-between;background:rgba(0,0,0,0.10);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:8px 10px;}
+.uno-actions-left,.uno-actions-right{display:flex;gap:7px;flex-wrap:wrap;}
+.smb.active-filter{border-color:var(--gold);color:var(--gold);background:rgba(201,168,76,0.09);}
+@media (max-width:900px){
+  .site-title{padding:28px 14px 8px;letter-spacing:0.1em;}
+  .site-sub{padding:0 16px 14px;letter-spacing:0.22em;font-size:0.72rem;}
+  .game-grid{grid-template-columns:repeat(2,minmax(0,1fr));padding:0 12px;gap:10px;}
+  .panel{max-width:calc(100vw - 24px);margin:12px;padding:16px;}
+  .ghdr{max-width:100%;padding:10px 12px;}
+  .scoreboard{padding:8px 10px;gap:8px;}
+  .pcard{min-width:calc(50% - 8px);flex:1;}
+  .turnbar{max-width:calc(100% - 20px);margin:0 10px 8px;padding:9px 10px;font-size:0.66rem;}
+  .chatwrap{max-width:calc(100% - 20px);margin:8px 10px;padding:9px;}
+  .chatmsgs{height:96px;}
+  .chatrow{align-items:stretch;}
+  .chatrow input{min-width:0;}
+}
+
+@media (max-width:780px){
+  .ucard{width:60px;height:92px;font-size:0.95rem}
+  .udeck,.udiscard{width:62px;height:92px}
+  .uno-actions{justify-content:center}
+  .uno-statusbar{justify-content:center}
+  .uhand{min-height:110px}
+  #uno-wrap{padding:0 6px;gap:8px}
+  .uno-opponents{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:4px 0;}
+  .uno-opp-area{max-width:none;min-width:0;padding:8px;}
+}
+
+@media (max-width:640px){
+  body{overflow-x:hidden;}
+  .site-title{font-size:clamp(1.8rem,10vw,2.6rem);padding-top:22px;}
+  .gold-line{width:120px;margin-bottom:16px;}
+  .game-grid{grid-template-columns:1fr 1fr;gap:8px;}
+  .gc{padding:16px 10px;border-radius:12px;}
+  .gi{font-size:2rem;margin-bottom:6px;}
+  .gt{font-size:0.8rem;}
+  .gd,.gbadge{font-size:0.62rem;}
+  .tabs{margin-bottom:10px;}
+  .tab{font-size:0.62rem;padding:8px 4px;}
+  .btn{padding:10px 12px;font-size:0.68rem;}
+  .rcval{font-size:1.35rem;letter-spacing:0.22em;word-break:break-all;}
+  .ghdr{padding:9px 10px;gap:8px;}
+  .ghtitle{font-size:0.8rem;}
+  .backbtn{font-size:0.58rem;padding:5px 8px;}
+  .scoreboard{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;padding-bottom:4px;}
+  .pcard{min-width:130px;flex:none;}
+  .chatrow{flex-direction:column;}
+  .csend{width:100%;padding:9px 10px;}
+  .uno-center{gap:10px;padding:6px 0;align-items:center;}
+  .udeck,.udiscard{width:56px;height:84px;}
+  .uno-actions{gap:6px;}
+  .smb{padding:9px 12px;font-size:0.62rem;}
+  .smalllbl{font-size:0.58rem;letter-spacing:0.12em;}
+  .uhand{padding:8px 4px;gap:4px;min-height:96px;}
+  .ucard{width:48px;height:74px;border-radius:8px;font-size:0.72rem;}
+  .ucard .ts,.ucard .bs{font-size:0.46rem;}
+  .uno-opp-name{font-size:0.58rem;}
+  .ucb{width:18px;height:28px;}
+  #okey-wrap{padding:0 6px;}
+  .okey-table{min-height:unset;padding:14px 10px 90px;border-radius:14px;}
+  .okey-table{min-height:unset;padding:14px 10px 90px;border-radius:14px;}
+  .okey-opp-area{max-width:none;padding:7px;}
+  .okey-opp-area.pos-left .okey-opp-name,.okey-opp-area.pos-right .okey-opp-name{font-size:0.5rem;max-height:70px;}
+.okey-opp-area.pos-left .okey-opp-tiles,.okey-opp-area.pos-right .okey-opp-tiles{flex-direction:column;align-items:center;gap:2px;flex-wrap:nowrap;}
+  .orack{padding:10px 8px;min-height:130px;border-radius:12px;}
+  .orack-row{padding:4px 4px 9px;gap:3px;grid-template-columns:repeat(15,1fr);}
+  .otile{width:34px;height:52px;border-radius:7px;}
+  .tnum{font-size:0.82rem;}
+  .tcol{font-size:0.48rem;margin-top:2px;}
+  .opile,.opindt,.odiscpile{width:42px;height:62px;}
+}
+
+@media (max-width:480px){
+  .site-sub{letter-spacing:0.12em;font-size:0.66rem;}
+  .game-grid{grid-template-columns:1fr;}
+  .panel{padding:14px 12px;}
+  input[type=text],select{font-size:16px;}
+  .turnbar{font-size:0.6rem;}
+  .chatmsgs{height:88px;font-size:0.72rem;}
+  .uno-opponents{grid-template-columns:1fr;}
+  .uno-center{flex-wrap:nowrap;justify-content:space-between;}
+  .udeck,.udiscard{width:50px;height:76px;}
+  .ucard{width:42px;height:66px;font-size:0.64rem;}
+  .ucard .ts,.ucard .bs{font-size:0.42rem;}
+  .colbtn{width:40px;height:40px;}
+  .okey-opponents{min-height:200px;}
+  .okey-actions,.uno-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  .okey-actions .smb:last-child,.uno-actions .smb:last-child{grid-column:1 / -1;}
+}
+
+/* ===== OKEY ===== */
+#okey-wrap{width:100%;max-width:980px;padding:0 10px;display:flex;flex-direction:column;gap:10px;}
+.okey-table{position:relative;width:100%;min-height:520px;background:radial-gradient(circle at 50% 40%,rgba(30,132,73,0.22),rgba(8,8,16,0.02) 58%),linear-gradient(180deg,#11101b,#0d0c15);border:1px solid var(--bd);border-radius:18px;padding:22px 18px 120px;overflow:hidden;}
+.okey-table::before{content:'';position:absolute;inset:12px;border:1px solid rgba(201,168,76,0.12);border-radius:14px;pointer-events:none;}
+.okey-opponents{position:relative;min-height:260px;display:block;}
+.okey-opp-area{position:absolute;background:rgba(15,14,24,0.92);border:1px solid var(--bd);border-radius:14px;padding:10px 12px;min-width:126px;max-width:210px;box-shadow:0 10px 24px rgba(0,0,0,0.28);}
+.okey-opp-area.active-player{border-color:var(--gold);box-shadow:0 0 10px rgba(201,168,76,0.2),0 12px 26px rgba(0,0,0,0.34);}
+.okey-opp-area.pos-top{top:0;left:50%;transform:translateX(-50%);}
+.okey-opp-area.pos-left{left:6px;top:50%;transform:translateY(-50%);min-width:50px;max-width:60px;padding:10px 5px;}
+.okey-opp-area.pos-right{right:6px;top:50%;transform:translateY(-50%);min-width:50px;max-width:60px;padding:10px 5px;}
+.okey-opp-name{font-family:'Cinzel',serif;font-size:0.66rem;color:var(--gold2);letter-spacing:0.1em;margin-bottom:7px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.okey-opp-area.pos-left .okey-opp-name,.okey-opp-area.pos-right .okey-opp-name{writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);display:block;max-height:80px;margin:0 auto 6px;font-size:0.56rem;letter-spacing:0.14em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* Yan oyuncular — 1 satır yatay */
+.okey-opp-area.pos-left .okey-opp-tiles,
+.okey-opp-area.pos-right .okey-opp-tiles{flex-direction:row;flex-wrap:nowrap;gap:2px;justify-content:center;}
+.okey-opp-area.pos-left .otb,
+.okey-opp-area.pos-right .otb{width:28px;height:16px;border-radius:3px;}
+/* Karşı oyuncu — 2 satır grid */
+.okey-opp-area.pos-top .okey-opp-tiles{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;}
+.okey-opp-area.pos-top .otb{width:100%;aspect-ratio:1/1.5;}
+.okey-opp-tiles{display:flex;justify-content:center;gap:2px;flex-wrap:wrap;}
+.otb{width:15px;height:24px;border-radius:4px;background:linear-gradient(135deg,#31465d,#15202d);border:1px solid rgba(255,255,255,0.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,0.04);}
+.orack{display:flex;flex-direction:column;gap:10px;background:linear-gradient(180deg,rgba(67,39,19,0.98),rgba(42,22,10,0.98));border:1px solid rgba(214,196,169,0.18);border-radius:16px;padding:14px;min-height:170px;box-shadow:inset 0 2px 0 rgba(255,255,255,0.05),0 12px 24px rgba(0,0,0,0.28);}
+.orack-row{display:grid;grid-template-columns:repeat(15,1fr);gap:5px;align-items:flex-end;min-height:80px;padding:8px 8px 14px;border-radius:10px;position:relative;background:linear-gradient(180deg,rgba(120,78,42,0.22),rgba(40,24,12,0.1));overflow:visible;}
+.orack-row::after{content:'';position:absolute;left:6px;right:6px;bottom:0;height:8px;border-radius:0 0 8px 8px;background:linear-gradient(180deg,#8d5a31,#5f3719);box-shadow:0 2px 4px rgba(0,0,0,0.28);}
+.otile{width:100%;aspect-ratio:3/4.5;border-radius:8px;background:linear-gradient(180deg,#fffdf8,#ece3d6);border:1px solid #d6c4a9;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all 0.13s;position:relative;flex-shrink:0;box-shadow:inset 0 2px 0 rgba(255,255,255,0.9),0 4px 10px rgba(0,0,0,0.28);overflow:hidden;z-index:1;}
+.otile.dragging{opacity:0.4;transform:scale(0.95);}
+.orack-row.drag-over{outline:1px dashed rgba(201,168,76,0.45);outline-offset:2px;}
+.otile.drag-over{outline:2px solid rgba(201,168,76,0.7)!important;box-shadow:0 0 12px rgba(201,168,76,0.35)!important;}
+.otile.drop-target{outline:2px solid var(--gold)!important;box-shadow:0 0 14px rgba(201,168,76,0.45)!important;}
+.orack-row.drop-target{outline:2px dashed var(--gold);outline-offset:2px;}
+.otile::before{content:'';position:absolute;inset:4px;border-radius:6px;border:1px solid rgba(0,0,0,0.05);pointer-events:none;}
+.otile:hover{transform:translateY(-6px);box-shadow:0 8px 15px rgba(0,0,0,0.36);}
+.otile.osel{transform:translateY(-8px);border-color:var(--gold);box-shadow:0 0 10px rgba(201,168,76,0.45),0 10px 18px rgba(0,0,0,0.35);}
+.otile.oback{background:linear-gradient(135deg,#31465d,#15202d);border-color:rgba(255,255,255,0.1);}
+.otile.ojok{background:linear-gradient(180deg,#fff3db,#ffd36b);}
+.otile.empty{background:rgba(255,255,255,0.04);border:1px dashed rgba(214,196,169,0.35);box-shadow:none;cursor:default;transition:all 0.13s;}
+.otile.empty:hover{transform:none;box-shadow:none;background:rgba(255,255,255,0.07);border-color:rgba(214,196,169,0.55);}
+.otile.empty.drop-target,.otile.empty.drag-over{background:rgba(201,168,76,0.12)!important;border-color:var(--gold)!important;box-shadow:0 0 10px rgba(201,168,76,0.3)!important;}
+.tnum{font-family:'Cinzel',serif;font-size:1.05rem;font-weight:700;line-height:1;z-index:1;}
+.tcol{font-size:0.6rem;margin-top:3px;z-index:1;opacity:0.9;}
+.okey-center{display:flex;gap:18px;justify-content:center;align-items:flex-end;padding:8px 0 2px;flex-wrap:wrap;}
+.opile,.opindt,.odiscpile{width:50px;height:72px;border-radius:8px;box-shadow:0 6px 14px rgba(0,0,0,0.28);}
+.opile{background:linear-gradient(135deg,#31465d,#15202d);border:2px solid rgba(255,255,255,0.16);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform 0.13s;}
+.opile:hover{transform:scale(1.07);}
+.opindt{display:flex;align-items:center;justify-content:center;border:2px solid var(--gold);font-family:'Cinzel',serif;font-size:0.7rem;text-align:center;background:linear-gradient(180deg,#fffdf8,#ece3d6);}
+.odiscpile{background:rgba(255,255,255,0.04);border:2px dashed var(--bd);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:0.58rem;cursor:pointer;font-family:'Cinzel',serif;}
+.okey-actions{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:4px 0;align-items:center;}
+.okey-mode-inline{display:flex;gap:5px;align-items:center;margin-left:4px;}
+.okey-mode-sel{background:var(--s2);border:1px solid var(--bd);border-radius:7px;color:var(--text);font-family:'Cinzel',serif;font-size:0.62rem;letter-spacing:0.06em;padding:7px 8px;min-width:90px;outline:none;cursor:pointer;}
+.okey-mode-sel:focus{border-color:var(--gold);}
+.okey-open-state{font-family:'Cinzel',serif;font-size:0.62rem;letter-spacing:0.1em;text-align:center;color:var(--muted);padding-top:4px;min-height:18px;}
+.odm-inner{background:var(--s);border:1px solid var(--gold);border-radius:14px;padding:24px;width:90%;max-width:520px;max-height:90vh;overflow-y:auto;}
+.odm-inner h3{font-family:'Cinzel',serif;color:var(--gold);font-size:0.95rem;margin-bottom:12px;text-align:center;letter-spacing:0.1em;}
+.ogroups{display:flex;flex-direction:column;gap:8px;}
+.ogroup{display:flex;gap:4px;align-items:center;background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:8px;flex-wrap:wrap;}
+.ogroup-lbl{font-family:'Cinzel',serif;font-size:0.62rem;color:var(--muted);margin-bottom:4px;letter-spacing:0.1em;}
+/* okey-mode-row merged into actions */
+.okey-open-badge{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;border:1px solid rgba(201,168,76,0.35);background:rgba(201,168,76,0.1);color:var(--gold2);font-size:0.56rem;}
+@media (max-width:760px){.okey-table{padding:18px 10px 110px;min-height:560px}.okey-opp-area{min-width:100px;max-width:140px;padding:8px 8px}.okey-opp-area.pos-left{left:3px;top:50%;transform:translateY(-50%);min-width:42px;max-width:50px}.okey-opp-area.pos-right{right:3px;top:50%;transform:translateY(-50%);min-width:42px;max-width:50px}.okey-opp-area.pos-left .okey-opp-name,.okey-opp-area.pos-right .okey-opp-name{font-size:0.5rem;max-height:70px}.orack{padding:10px 8px;min-height:146px}.orack-row{gap:3px;padding:5px 6px 9px;grid-template-columns:repeat(15,1fr)}.opile,.opindt,.odiscpile{width:44px;height:66px}}
+
+/* ===== UX / PROFILE / THEMES ===== */
+/* Temalar CSS değişkenleriyle yönetilir - aşağıda tanımlı */
+
+.profile-mini{display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;margin:8px 0 14px;}
+.profile-mini .avatar{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-weight:900;background:linear-gradient(135deg,var(--gold),#8b6b1b);color:#15120a;box-shadow:0 4px 14px rgba(0,0,0,.25);}
+.profile-stats{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.profile-stats b{font-family:'Cinzel',serif;font-size:.8rem;color:var(--gold2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.profile-stats span{font-size:.68rem;color:var(--muted)}
+.theme-row{display:flex;gap:8px;align-items:center;margin-top:8px}
+.theme-row select{flex:1}
+.history-card{width:100%;max-width:700px;background:var(--s);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;margin:0 16px 10px}
+.history-list{display:flex;flex-direction:column;gap:6px;max-height:150px;overflow:auto}
+.history-item{display:flex;justify-content:space-between;gap:10px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:8px 10px;font-size:.74rem}
+.history-item b{font-family:'Cinzel',serif;color:var(--gold2);font-size:.72rem}
+/* UNO premium layout */
+.uno-table{position:relative;width:100%;max-width:960px;min-height:620px;background:radial-gradient(circle at 50% 35%,rgba(25,145,90,.22),rgba(0,0,0,.02) 55%),linear-gradient(180deg,#13251f,#0b1512);border:1px solid var(--bd);border-radius:26px;padding:18px 14px 18px;overflow:hidden;box-shadow:0 16px 34px rgba(0,0,0,.32), inset 0 0 0 10px rgba(97,61,29,.6), inset 0 0 0 12px rgba(162,117,59,.55)}
+.uno-table::before{content:'';position:absolute;inset:14px;border:1px solid rgba(255,255,255,.06);border-radius:18px;pointer-events:none}
+.uno-opponents{position:relative;min-height:240px}
+.uno-opp-area{position:absolute;min-width:126px;max-width:190px;background:rgba(12,20,17,.9);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:10px 12px;box-shadow:0 8px 22px rgba(0,0,0,.28)}
+.uno-opp-area.seat-top{top:4px;left:50%;transform:translateX(-50%)}
+.uno-opp-area.seat-left{top:104px;left:8px;transform:rotate(-8deg)}
+.uno-opp-area.seat-right{top:104px;right:8px;transform:rotate(8deg)}
+.uno-opp-area.seat-extra{bottom:0;left:50%;transform:translateX(-50%)}
+.uno-center{position:relative;min-height:150px;align-items:center}
+.udeck,.udiscard{width:74px;height:108px;border-radius:14px}
+.ucb{width:28px;height:42px;border-radius:7px}
+.uhand-wrap{background:linear-gradient(180deg,rgba(0,0,0,.16),rgba(0,0,0,.08));border:1px solid rgba(255,255,255,.06);border-radius:20px;padding:10px 10px 16px}
+.uhand{position:relative;min-height:205px;display:flex;align-items:flex-end;justify-content:center;overflow-x:auto;overflow-y:visible;padding:20px 10px 0}
+.uhand.arc-hand{overflow-x:auto;justify-content:flex-start}
+.uhand.arc-hand .ucard{flex:0 0 auto;margin-left:-18px;transform-origin:center 190px;transition:transform .18s ease, box-shadow .18s ease, filter .18s ease}
+.uhand.arc-hand .ucard.first-in-hand{margin-left:4px}
+.uhand.arc-hand .ucard:hover{z-index:3;transform:translateY(-12px) scale(1.06) rotate(var(--rot,0deg)) !important}
+.ucard{width:68px;height:104px;border-radius:14px;border:2px solid rgba(255,255,255,.16);box-shadow:0 7px 16px rgba(0,0,0,.38);font-size:1rem}
+.ucard .ts,.ucard .bs{font-size:.7rem}
+.ucard .uno-center-mark{font-size:1.25rem;line-height:1}
+.ucard.play{filter:drop-shadow(0 0 9px rgba(232,204,122,.38));}
+.ucard.best-play{outline:2px solid rgba(232,204,122,.7);box-shadow:0 0 0 2px rgba(232,204,122,.3),0 10px 24px rgba(0,0,0,.45)}
+.uno-chip{backdrop-filter:blur(7px)}
+.uno-play-burst{animation:unoBurst .34s ease}
+@keyframes unoBurst{0%{transform:scale(.92)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+/* Okey premium rack + touch */
+.okey-table{box-shadow:0 18px 40px rgba(0,0,0,.34), inset 0 0 0 10px rgba(80,49,24,.68), inset 0 0 0 12px rgba(136,89,43,.5)}
+.okey-table::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.06),transparent 35%);pointer-events:none}
+.otile{box-shadow:0 6px 12px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.7)}
+.otile.group-hint{box-shadow:0 0 0 2px rgba(30,132,73,.4),0 8px 16px rgba(0,0,0,.28)}
+.otile.best-discard{outline:2px dashed rgba(231,76,60,.75)}
+.otile.touch-dragging{opacity:.35}
+.tile-ghost{position:fixed;z-index:99999;pointer-events:none;transform:translate(-50%,-50%) scale(1.02);box-shadow:0 12px 24px rgba(0,0,0,.4)}
+.orack-row{position:relative}
+.orack-row::after{content:'';position:absolute;left:0;right:0;bottom:-10px;height:11px;border-radius:7px;background:linear-gradient(180deg,#5f3818,#2b190b);box-shadow:0 5px 10px rgba(0,0,0,.28)}
+.okey-actions,.okey-mode-row{flex-wrap:wrap}
+.seat-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;border-radius:999px;background:rgba(232,204,122,.12);color:var(--gold2);font-size:.58rem;padding:0 6px;margin-left:6px}
+.fx-pulse{animation:fxPulse .35s ease}
+@keyframes fxPulse{0%{transform:scale(.95)}50%{transform:scale(1.08)}100%{transform:scale(1)}}
+@media (max-width: 820px){
+  .uno-table{min-height:unset;padding:14px 10px 16px;border-radius:18px}
+  .uno-opponents{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-height:unset}
+  .uno-opp-area,.uno-opp-area.seat-top,.uno-opp-area.seat-left,.uno-opp-area.seat-right,.uno-opp-area.seat-extra{position:relative;inset:auto;transform:none;max-width:none;min-width:0}
+  .uno-center{min-height:unset;gap:10px}
+  .udeck,.udiscard{width:60px;height:90px}
+  .ucard{width:56px;height:86px;font-size:.86rem}
+  .uhand{min-height:160px;padding-top:12px}
+  .uhand.arc-hand .ucard{margin-left:-12px;transform-origin:center 145px}
+  .okey-table{padding:16px 12px 110px}
+}
+@media (max-width: 560px){
+  .theme-row{flex-direction:column;align-items:stretch}
+  .profile-mini{padding:8px 10px}
+  .ucard{width:50px;height:76px;border-radius:11px}
+  .uhand.arc-hand .ucard{margin-left:-10px;transform-origin:center 120px}
+}
+
+
+/* ===== ÖZEL ODA ===== */
+.room-type-btn{flex:1;background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:10px 8px;text-align:center;cursor:pointer;transition:all 0.2s;}
+.room-type-btn:hover{border-color:var(--gold);}
+.room-type-btn.active{border-color:var(--gold);background:rgba(201,168,76,0.08);}
+.rt-label{font-family:'Cinzel',serif;font-size:0.78rem;color:var(--gold2);margin:4px 0 2px;letter-spacing:0.08em;}
+.rt-desc{font-size:0.62rem;color:var(--muted);}
+.room-card .room-lock{font-size:0.75rem;margin-left:4px;opacity:0.7;}
+.join-pass-row{background:rgba(201,168,76,0.06);border:1px solid rgba(201,168,76,0.2);border-radius:8px;padding:10px 12px;margin-bottom:10px;}
+.join-pass-row .plock{font-size:0.75rem;color:var(--gold);font-family:'Cinzel',serif;letter-spacing:0.1em;margin-bottom:6px;}
+.rooms-section{width:100%;max-width:820px;padding:0 18px;margin-bottom:10px;}
+.rooms-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.rooms-title{font-family:'Cinzel',serif;font-size:0.85rem;color:var(--gold);letter-spacing:0.15em;}
+.rooms-count{font-size:0.7rem;color:var(--muted);font-family:'Cinzel',serif;}
+.rooms-list{display:flex;flex-direction:column;gap:8px;}
+.room-card{background:var(--s);border:1px solid var(--bd);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all 0.22s;position:relative;overflow:hidden;}
+.room-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0;transition:opacity 0.22s;}
+.room-card:hover{border-color:var(--gold);transform:translateY(-2px);box-shadow:0 0 18px rgba(201,168,76,0.18);}
+.room-card:hover::before{opacity:1;}
+.room-card.full{opacity:0.5;cursor:not-allowed;}
+.room-card.full:hover{transform:none;border-color:var(--bd);}
+.room-game-icon{font-size:1.8rem;flex-shrink:0;}
+.room-info{flex:1;min-width:0;}
+.room-game-name{font-family:'Cinzel',serif;font-size:0.85rem;color:var(--gold2);letter-spacing:0.08em;}
+.room-host{font-size:0.75rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.room-players{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.room-player-dots{display:flex;gap:3px;}
+.room-dot{width:8px;height:8px;border-radius:50%;background:var(--bd);}
+.room-dot.filled{background:var(--green);}
+.room-player-txt{font-family:'Cinzel',serif;font-size:0.68rem;color:var(--muted);}
+.room-join-btn{background:transparent;border:1px solid var(--gold);border-radius:6px;color:var(--gold);font-family:'Cinzel',serif;font-size:0.68rem;letter-spacing:0.08em;padding:6px 14px;cursor:pointer;transition:all 0.2s;white-space:nowrap;flex-shrink:0;}
+.room-join-btn:hover{background:var(--gold);color:var(--bg);}
+.room-join-btn.disabled{border-color:var(--muted);color:var(--muted);cursor:not-allowed;}
+.room-join-btn.disabled:hover{background:transparent;color:var(--muted);}
+.rooms-empty{text-align:center;padding:24px;font-size:0.8rem;color:var(--muted);font-family:'Cinzel',serif;letter-spacing:0.1em;background:var(--s);border:1px dashed var(--bd);border-radius:12px;}
+.rooms-loading{text-align:center;padding:18px;font-size:0.75rem;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:8px;}
+.rooms-refresh{background:none;border:1px solid var(--bd);border-radius:6px;color:var(--muted);font-family:'Cinzel',serif;font-size:0.62rem;padding:4px 10px;cursor:pointer;transition:all 0.18s;}
+.rooms-refresh:hover{border-color:var(--gold);color:var(--gold);}
+.fb-status{display:flex;align-items:center;gap:5px;font-size:0.6rem;color:var(--muted);font-family:'Cinzel',serif;padding:4px 0;}
+.fb-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse-fb 2s infinite;}
+@keyframes pulse-fb{0%,100%{opacity:1;}50%{opacity:0.4;}}
+
+
+/* ===== GİRİŞ / KAYIT EKRANI ===== */
+.auth-wrap{width:100%;max-width:420px;padding:20px;}
+.auth-logo{font-family:'Cinzel',serif;font-size:clamp(2rem,8vw,3.5rem);font-weight:900;letter-spacing:0.15em;color:var(--gold);text-shadow:0 0 40px rgba(201,168,76,0.4);text-align:center;padding:40px 0 6px;}
+.auth-sub{font-size:0.8rem;letter-spacing:0.35em;text-transform:uppercase;color:var(--muted);text-align:center;margin-bottom:28px;}
+.auth-card{background:var(--s);border:1px solid var(--bd);border-radius:16px;padding:28px;position:relative;}
+.auth-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);border-radius:16px 16px 0 0;}
+.auth-tabs{display:flex;gap:3px;margin-bottom:22px;background:var(--s2);border-radius:8px;padding:3px;}
+.auth-tab{flex:1;padding:9px;text-align:center;cursor:pointer;border-radius:6px;font-family:'Cinzel',serif;font-size:0.78rem;letter-spacing:0.1em;color:var(--muted);transition:all 0.2s;}
+.auth-tab.active{background:var(--bd);color:var(--gold2);}
+.auth-field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+.auth-field label{font-size:0.65rem;letter-spacing:0.25em;text-transform:uppercase;color:var(--muted);}
+.auth-btn{background:transparent;border:1px solid var(--gold);border-radius:8px;color:var(--gold);font-family:'Cinzel',serif;font-size:0.82rem;letter-spacing:0.1em;padding:13px;cursor:pointer;transition:all 0.25s;width:100%;position:relative;overflow:hidden;margin-top:6px;}
+.auth-btn::after{content:'';position:absolute;inset:0;background:var(--gold);transform:scaleX(0);transform-origin:left;transition:transform 0.25s;z-index:0;}
+.auth-btn:hover::after{transform:scaleX(1);}
+.auth-btn:hover{color:var(--bg);}
+.auth-btn span{position:relative;z-index:1;}
+.auth-btn:disabled{opacity:0.35;cursor:not-allowed;}
+.auth-btn:disabled::after{display:none;}
+.auth-err{background:rgba(192,57,43,0.12);border:1px solid rgba(192,57,43,0.3);border-radius:7px;padding:9px 12px;font-size:0.78rem;color:#e57373;text-align:center;margin-top:8px;display:none;}
+.auth-err.show{display:block;}
+.auth-divider{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--muted);font-size:0.65rem;letter-spacing:0.2em;}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--bd);}
+.auth-user-bar{display:flex;align-items:center;gap:10px;background:var(--s);border:1px solid var(--bd);border-radius:10px;padding:10px 14px;width:100%;max-width:820px;margin:0 18px 10px;}
+.auth-avatar{width:34px;height:34px;border-radius:50%;background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.3);display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:0.9rem;color:var(--gold2);flex-shrink:0;font-weight:700;}
+.auth-user-info{flex:1;min-width:0;}
+.auth-user-name{font-family:'Cinzel',serif;font-size:0.85rem;color:var(--gold2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.auth-user-email{font-size:0.65rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.auth-logout-btn{background:none;border:1px solid var(--bd);border-radius:6px;color:var(--muted);font-family:'Cinzel',serif;font-size:0.65rem;padding:5px 11px;cursor:pointer;transition:all 0.18s;white-space:nowrap;}
+.auth-logout-btn:hover{border-color:var(--red);color:var(--red);}
+
+
+/* ===== TEMA SİSTEMİ ===== */
+/* Klasik (varsayılan) - yeşil kahvehane */
+:root, body.theme-classic{
+  --bg:#0d2a1f;--s:#123527;--s2:#184330;--bd:#2b5a44;
+  --gold:#c9a84c;--gold2:#e8cc7a;--red:#c0392b;--blue:#2471a3;
+  --green:#1e8449;--text:#ddd8cc;--muted:#5a7468;
+  --body-bg:radial-gradient(circle at top,#2a6c4d 0%,#103222 45%,#081610 100%);
+}
+/* Gece - koyu mor */
+body.theme-night{
+  --bg:#080c1a;--s:#0f1428;--s2:#161c35;--bd:#252d52;
+  --gold:#9b8de8;--gold2:#c4b8f8;--red:#c0392b;--blue:#5b8dd9;
+  --green:#3a7bd5;--text:#d8d4f0;--muted:#5a5478;
+  --body-bg:radial-gradient(circle at top,#1c1f38 0%,#0d1020 45%,#070911 100%);
+}
+/* Zümrüt */
+body.theme-emerald{
+  --bg:#071a11;--s:#0e2c1c;--s2:#143624;--bd:#1e5234;
+  --gold:#2ecc71;--gold2:#7fffa8;--red:#e74c3c;--blue:#1abc9c;
+  --green:#27ae60;--text:#d4f0dc;--muted:#4a7a5a;
+  --body-bg:radial-gradient(circle at top,#2b8b5f 0%,#145137 45%,#081a11 100%);
+}
+/* Royal - altın mor */
+body.theme-royal{
+  --bg:#0e0a1a;--s:#1a1230;--s2:#221844;--bd:#3d2d6e;
+  --gold:#d4af37;--gold2:#f5d76e;--red:#c0392b;--blue:#7c4dff;
+  --green:#6a1b9a;--text:#e8dcf8;--muted:#6a5a8a;
+  --body-bg:radial-gradient(circle at top,#3d1f7a 0%,#1a0d3a 45%,#0a0615 100%);
+}
+/* Retro Casino - kırmızı siyah */
+body.theme-casino{
+  --bg:#0f0505;--s:#1a0808;--s2:#240f0f;--bd:#5a1a1a;
+  --gold:#f0c040;--gold2:#ffe080;--red:#e82020;--blue:#2471a3;
+  --green:#228b22;--text:#f0e8d8;--muted:#7a5858;
+  --body-bg:radial-gradient(circle at top,#6b1010 0%,#2d0808 45%,#0f0505 100%);
+}
+/* Açık tema */
+body.theme-light{
+  --bg:#f0ece2;--s:#ffffff;--s2:#f5f0e8;--bd:#d4c8b0;
+  --gold:#8b6914;--gold2:#5a4209;--red:#c0392b;--blue:#1a6eb5;
+  --green:#1a6b3c;--text:#2a2018;--muted:#7a6a50;
+  --body-bg:radial-gradient(circle at top,#e8d9b0 0%,#d4c090 45%,#c0a870 100%);
+}
+body{background:var(--body-bg);}
+/* Tema dots güncelle */
+.theme-dot-gold{background:var(--gold)!important;}
+.theme-dot-green{background:var(--green)!important;}
+.theme-dot-blue{background:var(--blue)!important;}
+
+</style>
+</head>
+<body>
+<div class="unoshout" id="unoshout">UNO!</div>
+<div id="toast"></div>
+
+<!-- HOME -->
+<!-- GİRİŞ / KAYIT EKRANI -->
+<div id="screen-auth" class="screen active" style="justify-content:center;align-items:center;min-height:100vh;">
+  <div class="auth-wrap">
+    <div class="auth-logo">OYUN SALONU</div>
+    <div class="auth-sub">Giriş yap veya kayıt ol</div>
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="auth-tab-login" onclick="switchAuthTab('login')">Giriş Yap</div>
+        <div class="auth-tab" id="auth-tab-register" onclick="switchAuthTab('register')">Kayıt Ol</div>
+      </div>
+      <!-- GİRİŞ -->
+      <div id="auth-login-form">
+        <div class="auth-field">
+          <label>E-posta</label>
+          <input type="email" id="auth-login-email" placeholder="ornek@email.com" autocomplete="email">
+        </div>
+        <div class="auth-field">
+          <label>Şifre</label>
+          <input type="password" id="auth-login-pass" placeholder="Şifreniz..." autocomplete="current-password" onkeydown="if(event.key==='Enter')authLogin()">
+        </div>
+        <button class="auth-btn" onclick="authLogin()" id="auth-login-btn"><span>Giriş Yap →</span></button>
+        <div class="auth-err" id="auth-login-err"></div>
+      </div>
+      <!-- KAYIT -->
+      <div id="auth-register-form" style="display:none">
+        <div class="auth-field">
+          <label>Kullanıcı Adı</label>
+          <input type="text" id="auth-reg-name" placeholder="Görünen isminiz..." maxlength="18" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('auth-reg-email').focus()">
+        </div>
+        <div class="auth-field">
+          <label>E-posta</label>
+          <input type="email" id="auth-reg-email" placeholder="ornek@email.com" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('auth-reg-pass').focus()">
+        </div>
+        <div class="auth-field">
+          <label>Şifre</label>
+          <input type="password" id="auth-reg-pass" placeholder="En az 6 karakter..." autocomplete="new-password" onkeydown="if(event.key==='Enter')authRegister()">
+        </div>
+        <button class="auth-btn" onclick="authRegister()" id="auth-reg-btn"><span>Kayıt Ol →</span></button>
+        <div class="auth-err" id="auth-reg-err"></div>
+      </div>
+      <div class="auth-divider">veya</div>
+      <button class="auth-btn" onclick="authGuest()" style="border-color:var(--muted);color:var(--muted)"><span>👤 Misafir Olarak Devam Et</span></button>
+    </div>
+  </div>
+</div>
+
+<div id="screen-home" class="screen">
+  <div class="site-title">OYUN SALONU</div>
+  <div class="site-sub">Çevrimiçi · P2P</div>
+  <div class="gold-line"></div>
+  <div class="auth-user-bar" id="auth-user-bar">
+    <div class="auth-avatar" id="auth-avatar-home">?</div>
+    <div class="auth-user-info"><div class="auth-user-name" id="auth-username-home">—</div><div class="auth-user-email" id="auth-email-home">—</div></div>
+    <button class="auth-logout-btn" id="auth-bar-btn" onclick="authBarAction()">Çıkış</button>
+  </div>
+  <div class="themebar">
+    <div class="themebox">
+      <label for="main-theme-select">🎨 Tema</label>
+      <select id="main-theme-select" onchange="applyTheme(this.value)">
+        <option value="classic">🟢 Klasik Kahvehane</option>
+        <option value="night">🌙 Gece / Mor</option>
+        <option value="emerald">💚 Zümrüt</option>
+        <option value="royal">👑 Royal Altın</option>
+        <option value="casino">🎰 Retro Casino</option>
+        <option value="light">☀️ Açık Tema</option>
+      </select>
+      <div class="theme-preview" aria-hidden="true">
+        <span class="theme-dot theme-dot-gold" style="background:var(--gold)"></span>
+        <span class="theme-dot theme-dot-green" style="background:var(--green)"></span>
+        <span class="theme-dot theme-dot-blue" style="background:var(--blue)"></span>
+      </div>
+    </div>
+  </div>
+  <div class="game-grid">
+    <div class="gc" onclick="selGame('dama',this)">
+      <span class="gi">🔴</span><div class="gt">Dama</div><div class="gd">8×8 klasik</div>
+      <div class="gbadge">2 KİŞİ</div>
+    </div>
+    <div class="gc" onclick="selGame('chess',this)">
+      <span class="gi">♟</span><div class="gt">Satranç</div><div class="gd">Tam kurallar</div>
+      <div class="gbadge">2 KİŞİ</div>
+    </div>
+    <div class="gc" onclick="selGame('tavla',this)">
+      <span class="gi">🎲</span><div class="gt">Tavla</div><div class="gd">Türk tavlası</div>
+      <div class="gbadge">2 KİŞİ</div>
+    </div>
+    <div class="gc" onclick="selGame('uno',this)">
+      <span class="gi">🃏</span><div class="gt">Uno</div><div class="gd">Renkli kart oyunu</div>
+      <div class="gbadge">3–6 KİŞİ</div>
+    </div>
+    <div class="gc" onclick="selGame('okey',this)">
+      <span class="gi">🀄</span><div class="gt">Okey</div><div class="gd">Türk okey masası</div>
+      <div class="gbadge">4 KİŞİ</div>
+    </div>
+  </div>
+  <!-- ODA LİSTESİ -->
+  <div class="rooms-section">
+    <div class="rooms-header">
+      <div>
+        <div class="rooms-title">Açık Odalar</div>
+        <div class="fb-status"><div class="fb-dot"></div><span id="fb-status-txt">Bağlanıyor...</span></div>
+      </div>
+      <button class="rooms-refresh" onclick="loadRooms()">↻ Yenile</button>
+    </div>
+    <div class="rooms-list" id="rooms-list">
+      <div class="rooms-loading"><div class="wd"></div><div class="wd"></div><div class="wd"></div></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:0">
+    <div class="ptitle" id="sgl">— Oyun Seç —</div>
+    <div class="field" id="uname-field"><label>Kullanıcı Adı</label><input type="text" id="uname" placeholder="İsminizi girin..." maxlength="18" readonly style="opacity:0.7;cursor:default" title="Kullanıcı adınızı değiştirmek için profilinize gidin"></div>
+    <div id="multi-opts" style="display:none">
+      <div class="field"><label>Oyuncu Sayısı</label>
+        <select id="player-count">
+          <option value="3">3 Kişi</option>
+          <option value="4" selected>4 Kişi</option>
+          <option value="5">5 Kişi</option>
+          <option value="6">6 Kişi</option>
+        </select>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('cr')">Oda Aç</div>
+      <div class="tab" onclick="switchTab('jo')">Katıl</div>
+    </div>
+    <div id="tab-cr">
+      <div class="field" style="margin-bottom:10px">
+        <label>Oda Türü</label>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <div class="room-type-btn active" id="rtype-public" onclick="setRoomType('public')">
+            <span style="font-size:1rem">🌐</span>
+            <div class="rt-label">Açık</div>
+            <div class="rt-desc">Listede görünsün</div>
+          </div>
+          <div class="room-type-btn" id="rtype-private" onclick="setRoomType('private')">
+            <span style="font-size:1rem">🔒</span>
+            <div class="rt-label">Gizli</div>
+            <div class="rt-desc">Şifreli, listede yok</div>
+          </div>
+        </div>
+      </div>
+      <div class="field" id="room-pass-field" style="display:none">
+        <label>Oda Şifresi</label>
+        <input type="text" id="room-password" placeholder="Şifre belirle..." maxlength="20" autocomplete="off">
+      </div>
+      <div class="rcbox" id="rcbox" style="display:none">
+        <div class="rclbl">Oda Kodu — Arkadaşlarınla Paylaş</div>
+        <div class="rcval" id="rcval" onclick="copyCode()">———</div>
+        <div class="rchint">Tıklayarak kopyala</div>
+      </div>
+      <button class="btn" onclick="createRoom()" id="btn-cr"><span>Oda Oluştur</span></button>
+      <div class="strow" id="st-cr" style="display:none"><div class="dot cn" id="dot-cr"></div><span id="sttxt-cr">...</span></div>
+    </div>
+    <div id="tab-jo" style="display:none">
+      <div class="field"><label>Oda Kodu</label>
+        <input type="text" id="jcode" placeholder="KODU GİR..." maxlength="6" style="text-transform:uppercase;letter-spacing:0.4em;text-align:center;font-size:1.2rem" oninput="checkJoinPassword()">
+      </div>
+      <div class="field" id="join-pass-field" style="display:none">
+        <label>Oda Şifresi</label>
+        <input type="text" id="join-password" placeholder="Şifreyi girin..." maxlength="20" autocomplete="off">
+      </div>
+      <button class="btn sec" onclick="joinRoom()" id="btn-jo"><span>Odaya Katıl</span></button>
+      <div class="strow" id="st-jo" style="display:none"><div class="dot cn" id="dot-jo"></div><span id="sttxt-jo">...</span></div>
+    </div>
+  </div>
+</div>
+  <div class="panel" id="profile-panel-extra" style="margin-top:0">
+    <div class="ptitle">Profil · Tema · Geçmiş</div>
+    <div id="profile-mini-host"></div>
+    <div class="theme-row">
+      <label style="font-size:.65rem;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);font-family:'Cinzel',serif">Tema</label>
+      <select id="profile-theme-select" onchange="applyTheme(this.value)">
+        <option value="classic">🟢 Klasik</option>
+        <option value="night">🌙 Gece</option>
+        <option value="emerald">💚 Zümrüt</option>
+        <option value="royal">👑 Royal</option>
+        <option value="casino">🎰 Casino</option>
+        <option value="light">☀️ Açık</option>
+      </select>
+    </div>
+    <div class="history-card" style="margin:12px 0 0;max-width:none;padding:10px 12px">
+      <div class="smalllbl" style="margin-bottom:8px">Son Maçlar</div>
+      <div class="history-list" id="history-list"></div>
+    </div>
+  </div>
+
+
+<!-- LOBBY (multi-player waiting room) -->
+<div id="screen-lobby" class="screen">
+  <div class="site-title" style="font-size:clamp(1.6rem,5vw,2.5rem);padding-top:50px">Oyun Lobisi</div>
+  <div class="panel">
+    <div class="ptitle" id="lobby-game-title">— Oyun —</div>
+    <div class="rcbox">
+      <div class="rclbl">Oda Kodu — Paylaş</div>
+      <div class="rcval" id="lobby-code" onclick="copyCode()">———</div>
+      <div class="rchint">Tıklayarak kopyala</div>
+    </div>
+    <div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+        <span style="font-size:0.65rem;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;font-family:'Cinzel',serif">OYUNCULAR</span>
+        <span style="font-size:0.65rem;color:var(--gold);font-family:'Cinzel',serif" id="lobby-count">0 / ?</span>
+      </div>
+      <div class="lobby-progress"><div class="lobby-prog-bar" id="lobby-prog" style="width:0%"></div></div>
+    </div>
+    <div class="lobby-players" id="lobby-slots"></div>
+    <div style="margin-top:12px">
+      <button class="btn grn" id="lobby-start-btn" onclick="hostStartGame()" style="display:none"><span>▶ Oyunu Başlat</span></button>
+      <div class="wdots" id="lobby-wait-dots"><div class="wd"></div><div class="wd"></div><div class="wd"></div></div>
+      <div style="text-align:center;font-size:0.7rem;color:var(--muted);letter-spacing:0.1em" id="lobby-status-txt">Oyuncular bekleniyor...</div>
+    </div>
+    <button class="btn dan" onclick="leaveHome()" style="margin-top:10px"><span>İptal</span></button>
+  </div>
+</div>
+
+<!-- WAIT (2-player) -->
+<div id="screen-wait" class="screen">
+  <div class="site-title" style="font-size:2rem;padding-top:60px">Rakip Bekleniyor</div>
+  <div class="panel">
+    <div class="wdots"><div class="wd"></div><div class="wd"></div><div class="wd"></div></div>
+    <div class="rcbox"><div class="rclbl">Kodu paylaş</div><div class="rcval" id="wait-code" onclick="copyCode()">———</div><div class="rchint">Tıklayarak kopyala</div></div>
+    <button class="btn dan" onclick="leaveHome()" style="margin-top:10px"><span>İptal</span></button>
+  </div>
+</div>
+
+<!-- DAMA -->
+<div id="screen-dama" class="screen">
+  <div class="ghdr"><button class="backbtn" onclick="leaveGame()">← Menü</button><div class="ghtitle">🔴 DAMA</div><div style="width:55px"></div></div>
+  <div class="scoreboard" id="dama-scores"></div>
+  <div class="turnbar" id="dama-turn">...</div>
+  <div style="display:flex;justify-content:center;padding:0 12px;width:100%;max-width:440px"><div id="dama-board"></div></div>
+  <div class="chatwrap"><div style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--muted);letter-spacing:0.15em;margin-bottom:6px">SOHBET</div><div class="chatmsgs" id="dama-chat"></div><div class="chatrow"><input type="text" id="dama-ci" placeholder="Mesaj..." maxlength="80" onkeydown="if(event.key==='Enter')sendChat('dama')"><button class="csend" onclick="sendChat('dama')">Gönder</button></div></div>
+  <div style="padding:0 12px 26px;width:100%;max-width:600px"><button class="btn dan" onclick="leaveGame()"><span>Çık</span></button></div>
+</div>
+
+<!-- SATRANÇ -->
+<div id="screen-chess" class="screen">
+  <div class="ghdr"><button class="backbtn" onclick="leaveGame()">← Menü</button><div class="ghtitle">♟ SATRANÇ</div><div style="width:55px"></div></div>
+  <div class="scoreboard" id="chess-scores"></div>
+  <div class="turnbar" id="chess-turn">...</div>
+  <div style="display:flex;justify-content:center;padding:0 12px;width:100%;max-width:440px"><div id="chess-board"></div></div>
+  <div id="pmodal" class="mbg" style="display:none"><div class="mod"><h3>Terfi — Hangi Taş?</h3><div class="promops" id="pchoices"></div></div></div>
+  <div class="chatwrap"><div style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--muted);letter-spacing:0.15em;margin-bottom:6px">SOHBET</div><div class="chatmsgs" id="chess-chat"></div><div class="chatrow"><input type="text" id="chess-ci" placeholder="Mesaj..." maxlength="80" onkeydown="if(event.key==='Enter')sendChat('chess')"><button class="csend" onclick="sendChat('chess')">Gönder</button></div></div>
+  <div style="padding:0 12px 26px;width:100%;max-width:600px"><button class="btn dan" onclick="leaveGame()"><span>Çık</span></button></div>
+</div>
+
+<!-- TAVLA -->
+<div id="screen-tavla" class="screen">
+  <div class="ghdr"><button class="backbtn" onclick="leaveGame()">← Menü</button><div class="ghtitle">🎲 TAVLA</div><div style="width:55px"></div></div>
+  <div class="scoreboard" id="tavla-scores"></div>
+  <div class="turnbar" id="tavla-turn">...</div>
+  <div class="dicewrap" id="tavla-dice"></div>
+  <div style="display:flex;justify-content:center;padding:0 9px;width:100%"><div id="tavla-board" style="width:100%;max-width:580px"></div></div>
+  <div style="display:flex;gap:7px;justify-content:center;flex-wrap:wrap;padding:6px 12px;width:100%;max-width:580px">
+    <button class="tavbtn" id="btn-roll" onclick="tavlaRoll()" disabled>🎲 Zar At</button>
+    <button class="tavbtn" id="btn-pass" onclick="tavlaPass()" disabled>Pas Geç</button>
+  </div>
+  <div class="chatwrap"><div style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--muted);letter-spacing:0.15em;margin-bottom:6px">SOHBET</div><div class="chatmsgs" id="tavla-chat"></div><div class="chatrow"><input type="text" id="tavla-ci" placeholder="Mesaj..." maxlength="80" onkeydown="if(event.key==='Enter')sendChat('tavla')"><button class="csend" onclick="sendChat('tavla')">Gönder</button></div></div>
+  <div style="padding:0 12px 26px;width:100%;max-width:600px"><button class="btn dan" onclick="leaveGame()"><span>Çık</span></button></div>
+</div>
+
+<!-- UNO -->
+<div id="screen-uno" class="screen">
+  <div class="ghdr"><button class="backbtn" onclick="leaveGame()">← Menü</button><div class="ghtitle">🃏 UNO</div><div class="uno-dir" id="uno-dir-lbl">↻</div></div>
+  <div class="turnbar" id="uno-turn">...</div>
+  <div id="uno-wrap">
+    <div class="uno-table">
+      <div class="uno-statusbar">
+        <div class="uno-chip" id="uno-chip-turn">Sıra bekleniyor</div>
+        <div class="uno-chip warn" id="uno-chip-rule">Kural: normal oyun</div>
+        <div class="uno-chip" id="uno-chip-count">Elindeki kart: 0</div>
+      </div>
+      <div class="uno-opponents" id="uno-opponents"></div>
+      <div class="uno-center">
+        <div>
+          <div class="udeck" onclick="unoDraw()" id="uno-deck-btn" title="Kart çek">
+            <span>ÇEK</span>
+            <span id="uno-deck-cnt">—</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <div class="udiscard" id="uno-discard" style="background:#333;min-width:52px"></div>
+          <div class="ucolor-badge" id="uno-colbadge" style="display:none"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px" id="uno-info-col">
+          <div style="font-family:'Cinzel',serif;font-size:0.62rem;color:var(--muted);letter-spacing:0.1em">YÖN</div>
+          <div style="font-size:1.7rem" id="uno-turn-arrow">↻</div>
+        </div>
+      </div>
+      <div id="uno-colpick" style="display:none;background:var(--s);border:1px solid var(--bd);border-radius:12px;padding:10px;margin-top:8px">
+        <div class="smalllbl" style="margin-bottom:8px">Renk Seç:</div>
+        <div class="colpick">
+          <div class="colbtn" style="background:#e74c3c" onclick="unoPickColor('red')">K</div>
+          <div class="colbtn" style="background:#3498db" onclick="unoPickColor('blue')">M</div>
+          <div class="colbtn" style="background:#2ecc71" onclick="unoPickColor('green')">Y</div>
+          <div class="colbtn" style="background:#f1c40f" onclick="unoPickColor('yellow')">S</div>
+        </div>
+      </div>
+      <div class="uno-actions">
+        <div class="uno-actions-left">
+          <button class="smb" id="uno-passbtn" onclick="unoPass()" disabled>Pas Geç</button>
+          <button class="smb" id="uno-sort-color" onclick="unoSortHand('color')">Renge Göre</button>
+          <button class="smb" id="uno-sort-value" onclick="unoSortHand('value')">Sayıya Göre</button>
+        </div>
+        <div class="uno-actions-right">
+          <button class="smb" id="uno-show-playable" onclick="unoTogglePlayableOnly()">Oynanabilirleri Göster</button>
+          <button class="smb" onclick="unoSuggestMove()">Öneri</button>
+          <button class="smb" id="uno-unobtn" onclick="shoutUno()" style="display:none">📢 UNO!</button>
+        </div>
+      </div>
+      <div class="uhand-wrap">
+        <div class="uhand-toolbar">
+          <div class="smalllbl" style="margin:0">SENİN ELİN</div>
+          <div class="uhand-meta" id="uno-help-txt">Oynanabilir kartlar parlıyor.</div>
+        </div>
+        <div class="uhand" id="uno-myh"></div>
+      </div>
+    </div>
+  </div>
+  <div class="chatwrap"><div style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--muted);letter-spacing:0.15em;margin-bottom:6px">SOHBET</div><div class="chatmsgs" id="uno-chat"></div><div class="chatrow"><input type="text" id="uno-ci" placeholder="Mesaj..." maxlength="80" onkeydown="if(event.key==='Enter')sendChat('uno')"><button class="csend" onclick="sendChat('uno')">Gönder</button></div></div>
+  <div style="padding:0 12px 26px;width:100%;max-width:700px"><button class="btn dan" onclick="leaveGame()"><span>Çık</span></button></div>
+</div>
+
+<!-- OKEY -->
+<div id="screen-okey" class="screen">
+  <div class="ghdr"><button class="backbtn" onclick="leaveGame()">← Menü</button><div class="ghtitle">🀄 OKEY</div><div style="width:55px"></div></div>
+  <div class="turnbar" id="okey-turn">...</div>
+  <div id="okey-wrap">
+    <div class="okey-table">
+      <div class="okey-opponents" id="okey-opponents"></div>
+      <div class="okey-center">
+        <div style="text-align:center">
+          <div class="opile" onclick="okeyDraw('pile')" title="Desteden çek">
+            <span style="color:rgba(255,255,255,0.5);font-family:'Cinzel',serif;font-size:0.6rem">ÇEK</span>
+          </div>
+          <div style="font-size:0.56rem;color:var(--muted);margin-top:3px;font-family:'Cinzel',serif" id="okey-pilecnt">—</div>
+        </div>
+        <div style="text-align:center">
+          <div class="opindt" id="okey-ind"><span style="font-size:0.58rem;color:var(--muted)">...</span></div>
+          <div style="font-size:0.56rem;color:var(--muted);margin-top:3px;font-family:'Cinzel',serif">OKEY TAŞI</div>
+        </div>
+        <div style="text-align:center">
+          <div class="odiscpile" id="okey-disctp" onclick="okeyDraw('discard')">ÇÖPLÜK</div>
+          <div style="font-size:0.56rem;color:var(--muted);margin-top:3px;font-family:'Cinzel',serif" id="okey-disccnt">0</div>
+        </div>
+      </div>
+      <div class="okey-actions">
+        <button class="smb pri" id="okey-discbtn" onclick="okeyDiscard()" disabled>Taş At</button>
+        <button class="smb" id="okey-declbtn" onclick="okeyDeclare()" disabled>🏆 Bitir!</button>
+        <button class="smb" onclick="okeySort()">Sırala</button>
+        <button class="smb" onclick="okeySuggestMove()">Öneri</button>
+        <div class="okey-mode-inline">
+          <select id="okey-open-mode" class="okey-mode-sel">
+            <option value="sirali">Sıralı El</option>
+            <option value="seri">Seri El</option>
+          </select>
+          <button class="smb" id="okey-openbtn" onclick="okeyOpenHand()" disabled>👐 El Aç</button>
+        </div>
+      </div>
+      <div class="okey-open-state" id="okey-open-state"></div>
+      <div class="smalllbl">SENİN ELİN</div>
+      <div class="orack" id="okey-myr"></div>
+    </div>
+  </div>
+  <div class="chatwrap"><div style="font-family:'Cinzel',serif;font-size:0.7rem;color:var(--muted);letter-spacing:0.15em;margin-bottom:6px">SOHBET</div><div class="chatmsgs" id="okey-chat"></div><div class="chatrow"><input type="text" id="okey-ci" placeholder="Mesaj..." maxlength="80" onkeydown="if(event.key==='Enter')sendChat('okey')"><button class="csend" onclick="sendChat('okey')">Gönder</button></div></div>
+  <div style="padding:0 12px 26px;width:100%;max-width:720px"><button class="btn dan" onclick="leaveGame()"><span>Çık</span></button></div>
+</div>
+
+<!-- GAMEOVER -->
+<div id="screen-gameover" class="screen">
+  <div style="height:60px"></div>
+  <div class="gopanel">
+    <div class="gores" id="go-res">—</div>
+    <div class="gosub" id="go-sub"></div>
+    <div class="go-rankings" id="go-rankings"></div>
+    <div class="brow">
+      <button class="btn" onclick="doRematch()"><span>Tekrar</span></button>
+      <button class="btn dan" onclick="leaveHome()"><span>Menü</span></button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// GLOBALS
+// ============================================================
+let currentUser=null;         // Firebase auth user (null = guest)
+let myPeer=null, myConn=null; // for guests: single conn to host
+let hostConns=[];             // for host: array of conns to guests
+let myName='', myIdx=0;       // myIdx = seat index (0=host)
+let players=[];               // [{name,idx}] sorted by seat
+let roomCode='', curGame='', gameActive=false, sgame='';
+let isHost=false;
+let maxPlayers=2; // 2 for dama/chess/tavla, 3-6 for uno/okey
+
+const GLBL={'dama':'🔴 Dama','chess':'♟ Satranç','tavla':'🎲 Tavla','uno':'🃏 Uno','okey':'🀄 Okey'};
+const MULTI_GAMES=['uno','okey'];
+
+// ============================================================
+// SCREEN
+// ============================================================
+function showSc(id){document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');s.style.display='none';});const e=document.getElementById('screen-'+id);e.style.display='flex';e.classList.add('active');}
+
+// ============================================================
+// LOBBY / HOME
+// ============================================================
+function selGame(g,el){
+  sgame=g;
+  document.getElementById('sgl').textContent=GLBL[g];
+  document.querySelectorAll('.gc').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel');
+  const mo=document.getElementById('multi-opts');
+  if(g==='uno'){mo.style.display='block';document.getElementById('player-count').innerHTML='<option value="3">3 Kişi</option><option value="4" selected>4 Kişi</option><option value="5">5 Kişi</option><option value="6">6 Kişi</option>';}
+  else if(g==='okey'){mo.style.display='block';document.getElementById('player-count').innerHTML='<option value="4" selected>4 Kişi (Standart)</option>';}
+  else{mo.style.display='none';}
+}
+function switchTab(t){document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',(i===0&&t==='cr')||(i===1&&t==='jo')));document.getElementById('tab-cr').style.display=t==='cr'?'block':'none';document.getElementById('tab-jo').style.display=t==='jo'?'block':'none';}
+function getU(){
+  // If logged in, use display name from auth
+  if(currentUser&&currentUser.displayName){
+    const inp=document.getElementById('uname');
+    if(inp&&!inp.value) inp.value=currentUser.displayName;
+    return inp?.value?.trim()||currentUser.displayName;
+  }
+  const v=document.getElementById('uname').value.trim();
+  if(!v){toast('Kullanıcı adı girin!');return null;}
+  return v;
+}
+function genCode(){return Math.random().toString(36).substring(2,8).toUpperCase();}
+
+// ============================================================
+// CREATE ROOM (HOST)
+// ============================================================
+function createRoom(){
+  const n=getU();if(!n)return;
+  if(!sgame){toast('Önce oyun seçin!');return;}
+  myName=n;isHost=true;curGame=sgame;roomCode=genCode();
+  myIdx=0;players=[{name:myName,idx:0}];
+  maxPlayers=MULTI_GAMES.includes(sgame)?parseInt(document.getElementById('player-count').value):2;
+  document.getElementById('btn-cr').disabled=true;
+  setSt('cr','cn','Bağlantı kuruluyor...');
+  document.getElementById('st-cr').style.display='flex';
+  myPeer=new Peer('SLN4-'+roomCode,{host:'0.peerjs.com',port:443,secure:true});
+  myPeer.on('open',()=>{
+    setSt('cr','ok','Hazır! Kod: '+roomCode);
+    document.getElementById('rcbox').style.display='block';
+    document.getElementById('rcval').textContent=roomCode;
+    document.getElementById('wait-code').textContent=roomCode;
+    document.getElementById('lobby-code').textContent=roomCode;
+    if(MULTI_GAMES.includes(curGame))showLobby();
+    else showSc('wait');
+  });
+  myPeer.on('connection',c=>{
+    const guestIdx=hostConns.length+1;
+    hostConns.push(c);
+    setupHostConn(c,guestIdx);
+  });
+  myPeer.on('error',e=>{setSt('cr','er','Hata: '+e.type);document.getElementById('btn-cr').disabled=false;if(e.type==='unavailable-id'){roomCode=genCode();createRoom();}});
+}
+
+function isDirectGameMsgType(t){
+  return ['uno-play','uno-draw','uno-pass','uno-shout','okey-draw-pile','okey-draw-discard','okey-discard','okey-declare','dama-move','chess-move','tavla-roll','tavla-move','tavla-pass'].includes(t);
+}
+function setupHostConn(c,guestIdx){
+  c.on('open',()=>{
+    // Send current state to new guest
+    c.send({t:'welcome',idx:guestIdx,game:curGame,maxP:maxPlayers,roomCode,players:players.map(p=>({name:p.name,idx:p.idx}))});
+  });
+  c.on('data',d=>{
+    if(d.t==='join'){
+      // Guest introduces itself
+      const p={name:d.name,idx:guestIdx,conn:c};
+      players.push(p);
+      // Broadcast updated player list to everyone
+      broadcastExcept({t:'player-joined',players:players.map(p=>({name:p.name,idx:p.idx}))},null);
+      updateLobby();
+      if(MULTI_GAMES.includes(curGame)&&players.length>=maxPlayers){
+        // Auto or manual start option
+        updateLobby();
+      } else if(!MULTI_GAMES.includes(curGame) && players.length>=2){
+        // 2-player games should start automatically as soon as guest joins
+        const startData={t:'game-start',players:players.map(p=>({name:p.name,idx:p.idx}))};
+        broadcastAll(startData);
+        startGame(curGame);
+      }
+    } else if(d.t==='msg' || isDirectGameMsgType(d.t)){
+      // Relay message from guest to everyone
+      const msg = d.t==='msg' && d.payload ? d.payload : d;
+      broadcastExcept({...msg,fromIdx:guestIdx},c);
+      handleGameMsg({...msg,fromIdx:guestIdx});
+    } else if(d.t==='chat'){
+      broadcastExcept({t:'chat',msg:d.msg,fromIdx:guestIdx},c);
+      addChat(curGame,players.find(p=>p.idx===guestIdx)?.name||'?',d.msg,'opp');
+    }
+  });
+  c.on('close',()=>{
+    players=players.filter(p=>p.idx!==guestIdx);
+    hostConns=hostConns.filter(hc=>hc!==c);
+    if(gameActive){toast('Bir oyuncu ayrıldı!');broadcastAll({t:'player-left',idx:guestIdx});}
+    updateLobby();
+  });
+}
+
+// ============================================================
+// JOIN ROOM (GUEST)
+// ============================================================
+function joinRoom(){
+  const n=getU();if(!n)return;
+  const code=document.getElementById('jcode').value.trim().toUpperCase();
+  if(code.length<4){toast('Geçerli kod girin!');return;}
+  myName=n;isHost=false;roomCode=code;
+  document.getElementById('btn-jo').disabled=true;
+  setSt('jo','cn','Bağlanıyor...');
+  document.getElementById('st-jo').style.display='flex';
+  myPeer=new Peer(undefined,{host:'0.peerjs.com',port:443,secure:true});
+  myPeer.on('open',()=>{
+    myConn=myPeer.connect('SLN4-'+code,{reliable:true});
+    setupGuestConn();
+    setSt('jo','cn','Odaya bağlanıyor...');
+  });
+  myPeer.on('error',e=>{setSt('jo','er','Bağlanamadı');document.getElementById('btn-jo').disabled=false;toast('Bağlantı hatası.');});
+}
+
+function setupGuestConn(){
+  myConn.on('open',()=>{
+    myConn.send({t:'join',name:myName});
+  });
+  myConn.on('data',d=>handleHostMsg(d));
+  myConn.on('close',()=>{if(gameActive){toast('Sunucu bağlantısı kesildi!');setTimeout(leaveHome,2000);}});
+}
+
+function handleHostMsg(d){
+  if(d.t==='welcome'){
+    myIdx=d.idx;curGame=d.game;maxPlayers=d.maxP;
+    players=d.players||[];
+    if(MULTI_GAMES.includes(curGame))showLobby();
+    else{
+      // 2-player games wait on this screen until host sends game-start
+      showSc('wait');
+      const wc=document.getElementById('wait-code');
+      if(wc)wc.textContent=roomCode;
+    }
+  } else if(d.t==='player-joined'){
+    players=d.players;updateLobby();
+    addSys(curGame,'Yeni oyuncu katıldı!');
+  } else if(d.t==='player-left'){
+    players=players.filter(p=>p.idx!==d.idx);
+    if(gameActive)toast('Bir oyuncu ayrıldı!');
+    updateLobby();
+  } else if(d.t==='game-start'){
+    players=d.players;maxPlayers=d.players.length;
+    startGame(curGame);
+  } else if(d.t==='chat'){
+    const p=players.find(p=>p.idx===d.fromIdx);
+    addChat(curGame,p?.name||'?',d.msg,'opp');
+  } else if(d.t==='okey-drew'){
+    // Guest receives the tile they drew
+    if(d.tile){
+      OState.hands[myIdx]=OState.hands[myIdx]||[];
+      OState.hands[myIdx].push(d.tile);
+    }
+    if(d.discard!==undefined) OState.discard=d.discard;
+    if(d.pileSize!==undefined) OState.pileSize=d.pileSize;
+    ODRAWN=true;OSEL=null;
+    renderOkey();updateOkeyTurn();
+  } else {
+    handleGameMsg(d);
+  }
+}
+
+// ============================================================
+// MESSAGING HELPERS
+// ============================================================
+function broadcastAll(data){
+  hostConns.forEach(c=>{if(c&&c.open)c.send(data);});
+}
+function broadcastExcept(data,exceptConn){
+  hostConns.forEach(c=>{if(c&&c.open&&c!==exceptConn)c.send(data);});
+}
+function sendToHost(data){
+  if(isHost){handleGameMsg({...data,fromIdx:0});}
+  else{if(myConn&&myConn.open)myConn.send({t:'msg',payload:data});}
+}
+function sendToAll(data){
+  if(isHost){broadcastAll(data);}  // Host already applied move directly
+  else sendToHost(data);
+}
+function sendChat_net(g,msg){
+  if(isHost){broadcastAll({t:'chat',msg,fromIdx:0});addChat(g,myName,msg,'you');}
+  else{if(myConn&&myConn.open)myConn.send({t:'chat',msg});addChat(g,'Sen',msg,'you');}
+}
+
+// ============================================================
+// LOBBY
+// ============================================================
+function showLobby(){
+  document.getElementById('lobby-game-title').textContent=GLBL[curGame];
+  document.getElementById('lobby-code').textContent=roomCode;
+  updateLobby();
+  showSc('lobby');
+}
+function updateLobby(){
+  const cnt=players.length;
+  document.getElementById('lobby-count').textContent=cnt+' / '+maxPlayers;
+  document.getElementById('lobby-prog').style.width=Math.round(cnt/maxPlayers*100)+'%';
+  const slots=document.getElementById('lobby-slots');slots.innerHTML='';
+  for(let i=0;i<maxPlayers;i++){
+    const p=players.find(pl=>pl.idx===i);
+    const slot=document.createElement('div');
+    slot.className='lp-slot'+(p?' filled':'')+(i===0?' host-slot':'');
+    if(p){
+      const av=document.createElement('div');
+      av.className='lp-avatar';av.textContent=['🎮','👤','🎯','🌟','💎','🎲'][i]||'👤';
+      av.style.background=['rgba(201,168,76,0.15)','rgba(41,128,185,0.15)','rgba(192,57,43,0.15)','rgba(39,174,96,0.15)','rgba(125,60,152,0.15)','rgba(202,111,30,0.15)'][i]||'rgba(255,255,255,0.05)';
+      const nm=document.createElement('div');nm.className='lp-name';nm.textContent=p.name;
+      const bd=document.createElement('div');bd.className='lp-badge';bd.textContent=i===0?'HOST':'';
+      slot.appendChild(av);slot.appendChild(nm);slot.appendChild(bd);
+    } else {
+      const av=document.createElement('div');av.className='lp-avatar';av.textContent='⋯';av.style.opacity='0.3';
+      const nm=document.createElement('div');nm.className='lp-empty';nm.textContent='Boş slot';
+      slot.appendChild(av);slot.appendChild(nm);
+    }
+    slots.appendChild(slot);
+  }
+  const startBtn=document.getElementById('lobby-start-btn');
+  const waitDots=document.getElementById('lobby-wait-dots');
+  const stxt=document.getElementById('lobby-status-txt');
+  if(isHost&&cnt>=2){
+    startBtn.style.display='block';
+    waitDots.style.display='none';
+    stxt.textContent=cnt<maxPlayers?'Yeterli oyuncu var — başlayabilirsiniz!':'Oda dolu!';
+  } else {
+    startBtn.style.display='none';
+    waitDots.style.display='flex';
+    stxt.textContent=(maxPlayers-cnt)+' oyuncu daha bekleniyor...';
+  }
+}
+function hostStartGame(){
+  if(!isHost||players.length<2)return;
+  const startData={t:'game-start',players:players.map(p=>({name:p.name,idx:p.idx}))};
+  broadcastAll(startData);
+  startGame(curGame);
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function leaveHome(){
+  gameActive=false;
+  hostConns.forEach(c=>{try{c.close();}catch(e){}});hostConns=[];
+  if(myConn){try{myConn.close();}catch(e){}myConn=null;}
+  if(myPeer){try{myPeer.destroy();}catch(e){}myPeer=null;}
+  document.getElementById('btn-cr').disabled=false;document.getElementById('btn-jo').disabled=false;
+  document.getElementById('rcbox').style.display='none';document.getElementById('st-cr').style.display='none';document.getElementById('st-jo').style.display='none';
+  document.getElementById('multi-opts').style.display='none';
+  sgame='';document.getElementById('sgl').textContent='— Oyun Seç —';
+  document.querySelectorAll('.gc').forEach(c=>c.classList.remove('sel'));
+  switchTab('cr');players=[];hostConns=[];
+  // If guest mode, re-enable uname input
+  if(!currentUser){
+    const inp=document.getElementById('uname');
+    if(inp){inp.removeAttribute('readonly');inp.style.opacity='1';inp.style.cursor='';}
+  }
+  showSc('home');
+}
+
+// ===== ENHANCED UX PACK =====
+let audioCtx=null, currentTheme=localStorage.getItem('oyunSalonuTheme')||'classic';
+let touchDrag={active:false,fromIdx:null,ghost:null};
+let UPendingUno=null;
+function getAudio(){if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); return audioCtx;}
+function playFx(type){
+  try{
+    const ctx=getAudio(), now=ctx.currentTime;
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    if(type==='draw'){o.type='triangle';o.frequency.setValueAtTime(460,now);o.frequency.exponentialRampToValueAtTime(620,now+.08);g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.03,now+.02);g.gain.exponentialRampToValueAtTime(.0001,now+.12);}
+    else if(type==='discard'){o.type='square';o.frequency.setValueAtTime(280,now);o.frequency.exponentialRampToValueAtTime(180,now+.09);g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.025,now+.01);g.gain.exponentialRampToValueAtTime(.0001,now+.12);}
+    else if(type==='win'){o.type='sine';o.frequency.setValueAtTime(440,now);o.frequency.exponentialRampToValueAtTime(660,now+.12);o.frequency.exponentialRampToValueAtTime(880,now+.28);g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.04,now+.03);g.gain.exponentialRampToValueAtTime(.0001,now+.34);}
+    else {o.type='triangle';o.frequency.setValueAtTime(340,now);g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.02,now+.02);g.gain.exponentialRampToValueAtTime(.0001,now+.08);}
+    o.start(now); o.stop(now+.4);
+  }catch(e){}
+}
+function statKey(name){return 'oyunSalonuStats:'+String(name||'Misafir').trim().toLowerCase();}
+function getStats(name){try{return JSON.parse(localStorage.getItem(statKey(name))||'{"games":0,"wins":0,"history":[]}');}catch(e){return {games:0,wins:0,history:[]};}}
+function saveStats(name,stats){localStorage.setItem(statKey(name),JSON.stringify(stats));}
+function rankFromWins(wins){ if(wins>=25) return 'Usta'; if(wins>=12) return 'Kıdemli'; if(wins>=5) return 'Oyuncu'; return 'Çaylak'; }
+function updateProfileUI(){
+  const host=document.getElementById('profile-mini-host'); if(!host) return;
+  const name=(document.getElementById('uname')?.value||myName||'Misafir').trim()||'Misafir';
+  const s=getStats(name); const wr=s.games?Math.round((s.wins/s.games)*100):0;
+  host.innerHTML=`<div class="profile-mini"><div class="avatar">${name[0]?.toUpperCase()||'?'}</div><div class="profile-stats"><b>${esc(name)} · ${rankFromWins(s.wins)}</b><span>${s.games} maç · ${s.wins} galibiyet · %${wr} kazanma</span></div></div>`;
+  const list=document.getElementById('history-list'); if(list){
+    list.innerHTML='';
+    (s.history||[]).slice(0,8).forEach(h=>{const d=document.createElement('div'); d.className='history-item'; d.innerHTML=`<div><b>${esc(h.game)}</b><div>${esc(h.result)}</div></div><div>${esc(h.date)}</div>`; list.appendChild(d);});
+    if(!list.children.length) list.innerHTML='<div class="history-item"><div>Henüz maç yok</div><div>—</div></div>';
+  }
+}
+function recordMatchForCurrentPlayer(win, rankings){
+  const name=(myName||document.getElementById('uname')?.value||'Misafir').trim()||'Misafir';
+  const s=getStats(name); s.games += 1; if(win) s.wins += 1;
+  s.history = s.history || [];
+  const pos = rankings?.findIndex?.(r=>r.name===name); const place = pos>=0 ? (pos+1)+'. sıra' : (win?'Kazandı':'Bitti');
+  s.history.unshift({game:GLBL[curGame]||curGame,result: win===null ? 'Berabere · '+place : (win?'Kazandı':'Kaybetti')+' · '+place,date:new Date().toLocaleDateString('tr-TR')});
+  s.history=s.history.slice(0,12); saveStats(name,s); updateProfileUI();
+}
+
+function initEnhancementUI(){applyTheme(currentTheme); updateProfileUI(); const uname=document.getElementById('uname'); if(uname && !uname._bindProfile){uname._bindProfile=true; uname.addEventListener('input',updateProfileUI);} }
+const _origStartGame = startGame;
+startGame = function(g){ _origStartGame(g); setTimeout(()=>{updateProfileUI(); if(g==='uno') renderUno(); if(g==='okey') renderOkey();},0); };
+const _origGameOver = gameOver;
+gameOver = function(win,sub,rankings){ if(win!==undefined) recordMatchForCurrentPlayer(win, rankings||[]); if(win) playFx('win'); _origGameOver(win,sub,rankings); };
+const _origLeaveHome = leaveHome;
+leaveHome = function(){ _origLeaveHome(); setTimeout(updateProfileUI,0); };
+
+// UNO helpers
+const _origApplyUnoPlay = applyUnoPlay;
+applyUnoPlay = function(fromIdx,cardIdx,chosenColor,cardRef=null,matchOrdinal=0){ if(isHost) unoMaybePenalty(); const before=(UState.hands[fromIdx]||[]).length; _origApplyUnoPlay(fromIdx,cardIdx,chosenColor,cardRef,matchOrdinal); try{playFx('discard'); document.getElementById('uno-discard')?.classList.add('uno-play-burst'); setTimeout(()=>document.getElementById('uno-discard')?.classList.remove('uno-play-burst'),260);}catch(e){} if(isHost){ const after=(UState.hands[fromIdx]||[]).length; if(after===1) UPendingUno=fromIdx; else if(UPendingUno===fromIdx && after!==1) UPendingUno=null; } };
+const _origApplyUnoDraw = applyUnoDraw;
+applyUnoDraw = function(fromIdx){ if(isHost) unoMaybePenalty(); _origApplyUnoDraw(fromIdx); playFx('draw'); document.getElementById('uno-deck-btn')?.classList.add('fx-pulse'); setTimeout(()=>document.getElementById('uno-deck-btn')?.classList.remove('fx-pulse'),220); };
+const _origApplyUnoPass = applyUnoPass;
+applyUnoPass = function(fromIdx){ if(isHost) unoMaybePenalty(); _origApplyUnoPass(fromIdx); };
+const _origShoutUno = shoutUno;
+shoutUno = function(){ if(isHost && UState.hands?.[myIdx]?.length===1) UPendingUno=null; _origShoutUno(); };
+const _origUnoMsg = unoMsg;
+unoMsg = function(d){ if(d.t==='uno-shout' && isHost && d.fromIdx!==undefined && (UState.hands[d.fromIdx]||[]).length===1) UPendingUno=null; _origUnoMsg(d); };
+const _origRenderUno = renderUno;
+renderUno = function(){ _origRenderUno(); };
+
+// Okey helpers
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+const _origApplyOkeyDraw = applyOkeyDraw;
+applyOkeyDraw = function(fromIdx,source){ _origApplyOkeyDraw(fromIdx,source); playFx('draw'); document.getElementById(source==='pile'?'okey-pilecnt':'okey-disccnt')?.classList.add('fx-pulse'); setTimeout(()=>document.getElementById(source==='pile'?'okey-pilecnt':'okey-disccnt')?.classList.remove('fx-pulse'),250); };
+const _origApplyOkeyDiscard = applyOkeyDiscard;
+applyOkeyDiscard = function(fromIdx,tileIdx){ _origApplyOkeyDiscard(fromIdx,tileIdx); playFx('discard'); document.getElementById('okey-disctp')?.classList.add('fx-pulse'); setTimeout(()=>document.getElementById('okey-disctp')?.classList.remove('fx-pulse'),250); };
+const _origRenderOkey = renderOkey;
+renderOkey = function(){ _origRenderOkey();
+  const mode=document.getElementById('okey-open-mode')?.value||'sirali'; const hintKeys=okeyComputeHighlightKeys(mode);
+  document.querySelectorAll('#okey-myr .otile').forEach(el=>{ const idx=parseInt(el.dataset.slot||'-1',10); if(idx>=0 && OSLOTS[idx]){ const k=okeyTileKey(OSLOTS[idx]); if(hintKeys.has(k)) el.classList.add('group-hint'); const hand=okeyAllTiles(); let suggested=null, best=Infinity; hand.forEach((t,i)=>{ const s=okeyHintScore(t,hand); if(s<best){best=s; suggested=i;} }); const tileIdx=OSLOTS.slice(0,idx+1).filter(Boolean).length-1; if(suggested===tileIdx) el.classList.add('best-discard'); } });
+  const relPos=['pos-left','pos-top','pos-right']; [...document.querySelectorAll('#okey-opponents .okey-opp-area')].forEach((el,i)=>{ const name=el.querySelector('.okey-opp-name'); if(name && !name.querySelector('.seat-badge')){ const badge=document.createElement('span'); badge.className='seat-badge'; badge.textContent=['SOL','KARŞI','SAĞ'][i]||'OY'; name.appendChild(badge);} });
+  document.querySelectorAll('#okey-myr .otile').forEach(el=>{ const idx=parseInt(el.dataset.slot||'-1',10); if(Number.isInteger(idx) && idx>=0){ el.addEventListener('pointerdown',ev=>okeyTouchStart(ev,idx),{passive:true}); } });
+};
+const _prevOkeyRenderMaybe = renderOkey;
+// Patch attributes after original render structure exists
+const _origRenderOkey2 = renderOkey;
+renderOkey = function(){ _origRenderOkey2(); document.querySelectorAll('#okey-myr .otile').forEach((el,i)=>{ el.dataset.slot = String(i); }); };
+// re-wrap to keep enhancements
+const __renderOkeyBase = renderOkey;
+renderOkey = function(){ __renderOkeyBase(); const mode=document.getElementById('okey-open-mode')?.value||'sirali'; const hintKeys=okeyComputeHighlightKeys(mode); document.querySelectorAll('#okey-myr .otile').forEach(el=>{ const idx=parseInt(el.dataset.slot||'-1',10); el.classList.remove('group-hint','best-discard'); if(idx>=0 && OSLOTS[idx]){ const k=okeyTileKey(OSLOTS[idx]); if(hintKeys.has(k)) el.classList.add('group-hint'); } if(Number.isInteger(idx) && idx>=0){ el.onpointerdown=(ev)=>okeyTouchStart(ev,idx);} }); const hand=okeyAllTiles(); let suggested=0,best=Infinity; hand.forEach((t,i)=>{ const s=okeyHintScore(t,hand); if(s<best){best=s; suggested=i;} }); document.querySelectorAll('#okey-myr .otile').forEach(el=>{ const idx=parseInt(el.dataset.slot||'-1',10); const tileIdx=Number.isInteger(idx)? OSLOTS.slice(0,idx+1).filter(Boolean).length-1 : -1; if(tileIdx===suggested && idx>=0 && OSLOTS[idx]) el.classList.add('best-discard'); }); const selfOpened=OState.opened?.[myIdx]; if(selfOpened){ const openState=document.getElementById('okey-open-state'); if(openState) openState.innerHTML=`Elin açık <span class="okey-open-badge">${groupLabelFromMode(selfOpened)}</span> · Uyumlu taşlar yeşil işaretli.`; } };
+
+// Initialize enhancements immediately and after load
+initEnhancementUI();
+setTimeout(initEnhancementUI,0);
+
+showSc('home');
+function leaveGame(){leaveHome();}
+function copyCode(){navigator.clipboard.writeText(roomCode).then(()=>toast('Kopyalandı: '+roomCode));}
+function setSt(p,s,t){document.getElementById('dot-'+p).className='dot '+s;document.getElementById('sttxt-'+p).textContent=t;}
+function doRematch(){if(isHost){broadcastAll({t:'game-start',players:players.map(p=>({name:p.name,idx:p.idx}))});startGame(curGame);}else{sendToHost({t:'rematch'});toast('İstek gönderildi...');}}
+function sendChat(g){const i=document.getElementById(g+'-ci');const m=i.value.trim();if(!m)return;i.value='';sendChat_net(g,m);}
+function addChat(g,s,m,c){const b=document.getElementById(g+'-chat');if(!b)return;const cls=c==='you'?'cyou':c==='opp'?'copp':'csys';b.innerHTML+=`<div><span class="${cls}">${esc(s)}:</span> ${esc(m)}</div>`;b.scrollTop=b.scrollHeight;}
+function addSys(g,m){const b=document.getElementById(g+'-chat');if(!b)return;b.innerHTML+=`<div class="csys">${esc(m)}</div>`;b.scrollTop=b.scrollHeight;}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+let tT;function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(tT);tT=setTimeout(()=>e.classList.remove('show'),2800);}
+function startGame(g){
+  gameActive=true;
+  // Reset game-specific state
+  OSLOTS=null;ODRAWN=false;OSEL=null;
+  UState={deck:[],discard:[],hands:{},currentIdx:0,direction:1,currentColor:'',drawStack:0,finished:[],mustDraw:false,drewThisTurn:false};
+  ['dama','chess','tavla','uno','okey'].forEach(x=>{const b=document.getElementById(x+'-chat');if(b)b.innerHTML='';});
+  if(g==='dama')initDama();else if(g==='chess')initChess();else if(g==='tavla')initTavla();else if(g==='uno')initUno();else if(g==='okey')initOkey();
+  showSc(g);
+}
+function gameOver(win,sub,rankings){
+  gameActive=false;const r=document.getElementById('go-res');
+  r.textContent=win===null?'BERABERE':win?'KAZANDIN!':'KAYBETTİN';
+  r.className='gores '+(win===null?'draw':win?'win':'lose');
+  document.getElementById('go-sub').textContent=sub||'';
+  const rk=document.getElementById('go-rankings');rk.innerHTML='';
+  if(rankings&&rankings.length>0){
+    const medals=['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣'];
+    rankings.forEach((r,i)=>{
+      const div=document.createElement('div');div.className='go-rank';
+      div.innerHTML=`<div class="go-rank-pos">${medals[i]||i+1}</div><div class="go-rank-name">${esc(r.name)}</div><div class="go-rank-info">${esc(r.info||'')}</div>`;
+      rk.appendChild(div);
+    });
+  }
+  showSc('gameover');
+}
+
+// ============================================================
+// HANDLE GAME MESSAGES (both host-from-any and guest-from-host)
+// ============================================================
+function handleGameMsg(d){
+  if(curGame==='dama')damaMsg(d);
+  else if(curGame==='chess')chessMsg(d);
+  else if(curGame==='tavla')tavlaMsg(d);
+  else if(curGame==='uno')unoMsg(d);
+  else if(curGame==='okey')okeyMsg(d);
+}
+
+// ============================================================
+// DAMA (2-player)
+// ============================================================
+let DB=[],DMC='',DMT=false,DSEL=null,DVM=[],DCP=null;
+function initDama(){
+  DMC=myIdx===0?'W':'B';DMT=myIdx===0;
+  DB=Array(64).fill(null);
+  for(let r=0;r<3;r++)for(let c=0;c<8;c++)if((r+c)%2===1)DB[r*8+c]={c:'B',k:false};
+  for(let r=5;r<8;r++)for(let c=0;c<8;c++)if((r+c)%2===1)DB[r*8+c]={c:'W',k:false};
+  DSEL=null;DVM=[];DCP=null;
+  const sc=document.getElementById('dama-scores');sc.innerHTML='';
+  players.forEach(p=>{const card=document.createElement('div');card.className='pcard'+(p.idx===myIdx?' me':'');card.id='dama-pc-'+p.idx;card.innerHTML=`<div class="pc-lbl">${p.idx===myIdx?'Sen':'Rakip'}</div><div class="pc-name">${esc(p.name)}</div><div class="pc-info" id="dama-pi-${p.idx}">${p.idx===0?'⚪':'⚫'}</div>`;sc.appendChild(card);});
+  rDama();uDamaTurn();addSys('dama','Oyun başladı!');
+}
+function rDama(){const b=document.getElementById('dama-board');b.innerHTML='';const fl=DMC==='B';for(let i=0;i<64;i++){const idx=fl?63-i:i;const r=Math.floor(idx/8),c=idx%8;const el=document.createElement('div');el.className='dc '+((r+c)%2===0?'L':'D');if(DSEL===idx)el.classList.add('sel');if(DVM.find(m=>m.to===idx))el.classList.add('vm');const p=DB[idx];if(p){const pe=document.createElement('div');pe.className='piece '+(p.c==='W'?'W':'B')+(p.k?' king':'');el.appendChild(pe);}el.onclick=()=>dClick(idx);b.appendChild(el);}let my=0,op=0;DB.forEach(p=>{if(!p)return;if(p.c===DMC)my++;else op++;});const myP=players.find(p=>p.idx===myIdx);const opP=players.find(p=>p.idx!==(myIdx));if(document.getElementById('dama-pi-'+myIdx))document.getElementById('dama-pi-'+myIdx).textContent=my+' taş';if(opP&&document.getElementById('dama-pi-'+opP.idx))document.getElementById('dama-pi-'+opP.idx).textContent=op+' taş';}
+function uDamaTurn(){const el=document.getElementById('dama-turn');const tp=players[DMT&&myIdx===0?0:1];if(DMT){el.textContent='▶ Senin sıran';el.className='turnbar my';}else{el.textContent=(players.find(p=>p.idx!==myIdx)?.name||'Rakip')+' oynuyor...';el.className='turnbar opp';}document.querySelectorAll('.pcard').forEach(c=>c.classList.remove('active-turn'));const activeIdx=DMT?myIdx:(myIdx===0?1:0);const ac=document.getElementById('dama-pc-'+activeIdx);if(ac)ac.classList.add('active-turn');}
+function dClick(idx){if(!DMT||!gameActive)return;const p=DB[idx];if(DCP!==null&&DCP!==idx&&!DVM.find(m=>m.to===idx)){DSEL=DCP;DVM=dMoves(DCP,true);rDama();return;}if(p&&p.c===DMC){DSEL=idx;DVM=dMoves(idx,dHasCap(DMC));rDama();return;}if(DSEL!==null){const mv=DVM.find(m=>m.to===idx);if(mv){aDama(mv);return;}}DSEL=null;DVM=[];rDama();}
+function dHasCap(col){for(let i=0;i<64;i++){const p=DB[i];if(p&&p.c===col&&dMoves(i,true).length>0)return true;}return false;}
+function dMoves(idx,capOnly=false){const p=DB[idx];if(!p)return[];const r=Math.floor(idx/8),c=idx%8;const dirs=p.k?[[-1,-1],[-1,1],[1,-1],[1,1]]:p.c==='W'?[[-1,-1],[-1,1]]:[[1,-1],[1,1]];const mv=[];dirs.forEach(([dr,dc])=>{const nr=r+dr,nc=c+dc;if(nr<0||nr>7||nc<0||nc>7)return;const ni=nr*8+nc,t=DB[ni];if(!t&&!capOnly)mv.push({from:idx,to:ni,cap:null});else if(t&&t.c!==p.c){const jr=nr+dr,jc=nc+dc;if(jr>=0&&jr<=7&&jc>=0&&jc<=7){const ji=jr*8+jc;if(!DB[ji])mv.push({from:idx,to:ji,cap:ni});}}});return capOnly?mv.filter(m=>m.cap!==null):mv;}
+function aDama(mv){DB[mv.to]=DB[mv.from];DB[mv.from]=null;if(mv.cap!==null)DB[mv.cap]=null;const p=DB[mv.to],r=Math.floor(mv.to/8);if(p.c==='W'&&r===0)p.k=true;if(p.c==='B'&&r===7)p.k=true;const chainMoves=mv.cap!==null?dMoves(mv.to,true):[];
+  const hasChain=chainMoves.length>0;
+  sendToAll({t:'dama-move',move:mv,chain:hasChain});
+  if(hasChain){DCP=mv.to;DSEL=mv.to;DVM=chainMoves;rDama();return;}DCP=null;DSEL=null;DVM=[];DMT=false;rDama();uDamaTurn();const myC=DB.filter(p=>p&&p.c===DMC).length;const opC=DB.filter(p=>p&&p.c!==DMC&&p!==null).length;if(opC===0)gameOver(true,'Tüm rakip taşlarını aldın!');else if(myC===0)gameOver(false,'Tüm taşların alındı!');}
+function damaMsg(d){
+  if(d.fromIdx===myIdx)return;
+  if(d.t==='dama-move'){
+    const mv=d.move;
+    DB[mv.to]=DB[mv.from];DB[mv.from]=null;
+    if(mv.cap!==null)DB[mv.cap]=null;
+    const p=DB[mv.to],r=Math.floor(mv.to/8);
+    if(p&&p.c==='W'&&r===0)p.k=true;
+    if(p&&p.c==='B'&&r===7)p.k=true;
+    DCP=null;DSEL=null;DVM=[];
+    // Only switch turn if no chain capture pending
+    if(!d.chain){DMT=true;}
+    rDama();uDamaTurn();
+    const myC=DB.filter(p=>p&&p.c===DMC).length;
+    const opC=DB.filter(p=>p&&p.c!==DMC&&p!==null).length;
+    if(opC===0)gameOver(false,'Tüm rakip taşları alındı!');
+    else if(myC===0)gameOver(false,'Tüm taşların alındı!');
+  }
+}
+
+// ============================================================
+// SATRANÇ (2-player)
+// ============================================================
+let CB=[],CMC='',CMT=false,CSEL=null,CVM=[],CCast={},CEP=null;
+const CPC={K:'♔',Q:'♕',R:'♖',B:'♗',N:'♘',P:'♙',k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'};
+const isW=p=>p&&p===p.toUpperCase()&&p!==p.toLowerCase();
+const pCl=p=>{if(!p)return null;return isW(p)?'W':'B';};
+const oCl=c=>c==='W'?'B':'W';
+function initChess(){
+  CMC=myIdx===0?'W':'B';CMT=myIdx===0;
+  const bk='rnbqkbnr';CB=Array(64).fill(null);
+  for(let c=0;c<8;c++){CB[c]=bk[c];CB[8+c]='p';CB[48+c]='P';CB[56+c]=bk[c].toUpperCase();}
+  CCast={wK:true,wQR:true,wKR:true,bK:true,bQR:true,bKR:true};CEP=null;CSEL=null;CVM=[];window._clm=null;
+  const sc=document.getElementById('chess-scores');sc.innerHTML='';
+  players.forEach(p=>{const card=document.createElement('div');card.className='pcard'+(p.idx===myIdx?' me':'');card.id='chess-pc-'+p.idx;card.innerHTML=`<div class="pc-lbl">${p.idx===myIdx?'Sen':'Rakip'}</div><div class="pc-name">${esc(p.name)}</div><div class="pc-info">${p.idx===0?'⚪ Beyaz':'⚫ Siyah'}</div>`;sc.appendChild(card);});
+  rChess();uChessTurn();addSys('chess','Oyun başladı!');
+}
+function rChess(){const b=document.getElementById('chess-board');b.innerHTML='';const fl=CMC==='B';const lm=window._clm;const ki=fKing(CMC,CB);const ick=ki!==-1&&isAtt(ki,oCl(CMC),CB);for(let i=0;i<64;i++){const idx=fl?63-i:i;const r=Math.floor(idx/8),c=idx%8;const sq=document.createElement('div');sq.className='sq '+((r+c)%2===0?'SL':'SD');if(lm&&(idx===lm.f||idx===lm.t))sq.classList.add('slm');if(CSEL===idx)sq.classList.add('ssel');const vm=CVM.find(m=>m.to===idx);if(vm){sq.classList.add('svm');if(CB[idx])sq.classList.add('hp');}if(ick&&idx===ki)sq.classList.add('schk');const p=CB[idx];if(p){const el=document.createElement('span');el.className='cp';el.textContent=CPC[p];el.style.color=isW(p)?'#f5f0e8':'#1a1212';el.style.textShadow=isW(p)?'0 1px 2px rgba(0,0,0,0.5)':'0 1px 2px rgba(255,255,255,0.2)';sq.appendChild(el);}if(c===0){const s=document.createElement('span');s.className='cr';s.textContent=8-r;sq.appendChild(s);}if(r===7){const s=document.createElement('span');s.className='cf';s.textContent='abcdefgh'[c];sq.appendChild(s);}sq.onclick=()=>cClick(idx);b.appendChild(sq);}}
+function uChessTurn(){const el=document.getElementById('chess-turn');if(CMT){el.textContent='▶ Senin sıran';el.className='turnbar my';}else{el.textContent=(players.find(p=>p.idx!==myIdx)?.name||'Rakip')+' oynuyor...';el.className='turnbar opp';}}
+function cClick(idx){if(!CMT||!gameActive)return;if(CSEL!==null){const mv=CVM.find(m=>m.to===idx);if(mv){aChess(mv);return;}}if(CB[idx]&&pCl(CB[idx])===CMC){CSEL=idx;CVM=getLegal(idx,CB,CMC);rChess();return;}CSEL=null;CVM=[];rChess();}
+function getLegal(idx,board,col){return getRaw(idx,board).filter(m=>{const nb=applyB(board,m);const ki=fKing(col,nb);return ki!==-1&&!isAtt(ki,oCl(col),nb);});}
+function getRaw(idx,board){const p=board[idx];if(!p)return[];const r=Math.floor(idx/8),c=idx%8,col=pCl(p);const mv=[];const sl=(dr,dc)=>{let nr=r+dr,nc=c+dc;while(nr>=0&&nr<8&&nc>=0&&nc<8){const ni=nr*8+nc;if(board[ni]){if(pCl(board[ni])!==col)mv.push({from:idx,to:ni});break;}mv.push({from:idx,to:ni});nr+=dr;nc+=dc;}};const jp=(dr,dc)=>{const nr=r+dr,nc=c+dc;if(nr>=0&&nr<8&&nc>=0&&nc<8){const ni=nr*8+nc;if(pCl(board[ni])!==col)mv.push({from:idx,to:ni});}};const t=p.toLowerCase();if(t==='r'||t==='q')[[0,1],[0,-1],[1,0],[-1,0]].forEach(([a,b])=>sl(a,b));if(t==='b'||t==='q')[[1,1],[1,-1],[-1,1],[-1,-1]].forEach(([a,b])=>sl(a,b));if(t==='n')[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]].forEach(([a,b])=>jp(a,b));if(t==='k'){[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].forEach(([a,b])=>jp(a,b));const ck=col==='W'?CCast.wK:CCast.bK;if(ck&&!isAtt(idx,oCl(col),board)){const row=col==='W'?7:0;if((col==='W'?CCast.wKR:CCast.bKR)&&!board[row*8+5]&&!board[row*8+6]&&!isAtt(row*8+5,oCl(col),board)&&!isAtt(row*8+6,oCl(col),board))mv.push({from:idx,to:row*8+6,castle:'K'});if((col==='W'?CCast.wQR:CCast.bQR)&&!board[row*8+3]&&!board[row*8+2]&&!board[row*8+1]&&!isAtt(row*8+3,oCl(col),board)&&!isAtt(row*8+2,oCl(col),board))mv.push({from:idx,to:row*8+2,castle:'Q'});}}if(t==='p'){const dir=col==='W'?-1:1,sr=col==='W'?6:1,fwd=idx+dir*8;if(fwd>=0&&fwd<64&&!board[fwd]){mv.push({from:idx,to:fwd,promo:Math.floor(fwd/8)===0||Math.floor(fwd/8)===7});if(r===sr&&!board[idx+2*dir*8])mv.push({from:idx,to:idx+2*dir*8});}[-1,1].forEach(dc=>{const nc2=c+dc;if(nc2<0||nc2>7)return;const ci=(r+dir)*8+(c+dc);if(ci>=0&&ci<64){if(board[ci]&&pCl(board[ci])!==col)mv.push({from:idx,to:ci,promo:Math.floor(ci/8)===0||Math.floor(ci/8)===7});if(ci===CEP)mv.push({from:idx,to:ci,epC:idx+dc});}});}return mv;}
+function applyB(board,mv){const nb=[...board];nb[mv.to]=nb[mv.from];nb[mv.from]=null;if(mv.castle){const row=Math.floor(mv.from/8);if(mv.castle==='K'){nb[row*8+5]=nb[row*8+7];nb[row*8+7]=null;}else{nb[row*8+3]=nb[row*8+0];nb[row*8+0]=null;}}if(mv.epC!==undefined)nb[mv.epC]=null;return nb;}
+function fKing(col,board){return board.indexOf(col==='W'?'K':'k');}
+function isAtt(sq,byCol,board){for(let i=0;i<64;i++){const p=board[i];if(!p||pCl(p)!==byCol)continue;if(getRawNS(i,board).some(m=>m.to===sq))return true;}return false;}
+function getRawNS(idx,board){const p=board[idx];if(!p)return[];const r=Math.floor(idx/8),c=idx%8,col=pCl(p);const mv=[];const sl=(dr,dc)=>{let nr=r+dr,nc=c+dc;while(nr>=0&&nr<8&&nc>=0&&nc<8){const ni=nr*8+nc;if(board[ni]){if(pCl(board[ni])!==col)mv.push({to:ni});break;}mv.push({to:ni});nr+=dr;nc+=dc;}};const jp=(dr,dc)=>{const nr=r+dr,nc=c+dc;if(nr>=0&&nr<8&&nc>=0&&nc<8){const ni=nr*8+nc;if(pCl(board[ni])!==col)mv.push({to:ni});}};const t=p.toLowerCase();if(t==='r'||t==='q')[[0,1],[0,-1],[1,0],[-1,0]].forEach(([a,b])=>sl(a,b));if(t==='b'||t==='q')[[1,1],[1,-1],[-1,1],[-1,-1]].forEach(([a,b])=>sl(a,b));if(t==='n')[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]].forEach(([a,b])=>jp(a,b));if(t==='k')[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].forEach(([a,b])=>jp(a,b));if(t==='p'){const dir=col==='W'?-1:1;[-1,1].forEach(dc=>{const nc2=c+dc;if(nc2>=0&&nc2<8){const ni=(r+dir)*8+nc2;if(ni>=0&&ni<64)mv.push({to:ni});}});}return mv;}
+function aChess(mv,promo=null){
+  if(mv.promo&&!promo){showPromo(CMC==='W'?'white':'black',ch=>aChess(mv,ch));return;}
+  window._clm={f:mv.from,t:mv.to};const nb=applyB(CB,mv);
+  if(mv.promo&&promo){const pc=CMC==='W'?promo.toUpperCase():promo.toLowerCase();nb[mv.to]=pc;}
+  const p=CB[mv.from];if(p==='K'){CCast.wK=false;CCast.wQR=false;CCast.wKR=false;}if(p==='k'){CCast.bK=false;CCast.bQR=false;CCast.bKR=false;}if(mv.from===63||mv.to===63)CCast.wKR=false;if(mv.from===56||mv.to===56)CCast.wQR=false;if(mv.from===7||mv.to===7)CCast.bKR=false;if(mv.from===0||mv.to===0)CCast.bQR=false;
+  if(p&&p.toLowerCase()==='p'&&Math.abs(mv.to-mv.from)===16)CEP=(mv.from+mv.to)/2;else CEP=null;
+  CB=nb;sendToAll({t:'chess-move',move:mv,promo,cast:{...CCast},ep:CEP});
+  CMT=false;CSEL=null;CVM=[];
+  const nc=oCl(CMC);const ki=fKing(nc,CB);const ick=isAtt(ki,oCl(nc),CB);
+  const hasMv=CB.some((_,i)=>pCl(CB[i])===nc&&getLegal(i,CB,nc).length>0);
+  rChess();uChessTurn();
+  if(!hasMv){if(ick)gameOver(true,'Şah mat!');else gameOver(null,'Pat');}
+  else if(ick)toast('Şah!');
+}
+function chessMsg(d){if(d.fromIdx===myIdx)return;if(d.t==='chess-move'){window._clm={f:d.move.from,t:d.move.to};const nb=applyB(CB,d.move);if(d.move.promo&&d.promo){const pc=CMC==='W'?d.promo.toLowerCase():d.promo.toUpperCase();nb[d.move.to]=pc;}if(d.cast)CCast={...d.cast};CEP=(d.ep!==undefined&&d.ep!==null)?d.ep:null;CB=nb;CMT=true;CSEL=null;CVM=[];const ki=fKing(CMC,CB);const ick=isAtt(ki,oCl(CMC),CB);const hasMv=CB.some((_,i)=>pCl(CB[i])===CMC&&getLegal(i,CB,CMC).length>0);rChess();uChessTurn();if(!hasMv){if(ick)gameOver(false,'Şah mat!');else gameOver(null,'Pat');}else if(ick)toast('Şah!');}}
+function showPromo(col,cb){const ps=col==='white'?['Q','R','B','N']:['q','r','b','n'];const m=document.getElementById('pmodal'),c=document.getElementById('pchoices');c.innerHTML='';ps.forEach(p=>{const btn=document.createElement('div');btn.className='promop';btn.textContent=CPC[p];btn.onclick=()=>{m.style.display='none';cb(p.toLowerCase());};c.appendChild(btn);});m.style.display='flex';}
+
+// ============================================================
+// TAVLA (2-player)
+// ============================================================
+let TP=[],TMC='',TMT=false,TDice=[],TUsed=[],TSEL=null,TVTG=[];
+function initTavla(){TMC=myIdx===0?'W':'B';TMT=myIdx===0;TP=Array(28).fill(null).map(()=>({W:0,B:0}));TP[24].W=2;TP[13].W=5;TP[8].W=3;TP[6].W=5;TP[1].B=2;TP[12].B=5;TP[17].B=3;TP[19].B=5;TDice=[];TUsed=[];TSEL=null;TVTG=[];
+  const sc=document.getElementById('tavla-scores');sc.innerHTML='';players.forEach(p=>{const card=document.createElement('div');card.className='pcard'+(p.idx===myIdx?' me':'');card.id='tavla-pc-'+p.idx;card.innerHTML=`<div class="pc-lbl">${p.idx===myIdx?'Sen':'Rakip'}</div><div class="pc-name">${esc(p.name)}</div><div class="pc-info">${p.idx===0?'⚪ Beyaz':'⚫ Siyah'}</div>`;sc.appendChild(card);});
+  rTavla();uTavlaTurn();addSys('tavla','Oyun başladı!');}
+function rTavla(){const b=document.getElementById('tavla-board');b.innerHTML='';const iw=TMC==='W';const top=iw?[13,14,15,16,17,18,19,20,21,22,23,24]:[12,11,10,9,8,7,6,5,4,3,2,1];const bot=iw?[12,11,10,9,8,7,6,5,4,3,2,1]:[13,14,15,16,17,18,19,20,21,22,23,24];function mkPts(arr,pos){const d=document.createElement('div');d.className='thalf';arr.forEach(pi=>{const pt=document.createElement('div');pt.className='tpt '+(pos)+' '+(pi%2===0?'dt':'lt');if(TSEL!==null&&TVTG.includes(pi))pt.classList.add('hi');if(TSEL===pi)pt.style.background='rgba(201,168,76,0.2)';const nm=document.createElement('span');nm.className='ptnum';nm.textContent=pi;pt.appendChild(nm);const data=TP[pi];if(data){['W','B'].forEach(col=>{const cnt=data[col];if(cnt<=0)return;for(let i=0;i<Math.min(cnt,5);i++){const ch=document.createElement('div');ch.className='ckr '+col;if(i===0&&cnt>5)ch.textContent=cnt;pt.appendChild(ch);}});}pt.onclick=()=>tClick(pi);d.appendChild(pt);});return d;}function mkBar(){const d=document.createElement('div');d.className='barcol';const tbi=iw?0:25;const bbi=iw?25:0;['B','W'].forEach((col,ci)=>{const barIdx=ci===0?tbi:bbi;const cnt=TP[barIdx]?.[col]||0;for(let i=0;i<Math.min(cnt,3);i++){const bp=document.createElement('div');bp.className='barp '+col;d.appendChild(bp);}});d.onclick=()=>tClick(iw?25:0);return d;}function mkHome(){const d=document.createElement('div');d.className='homecol';const wh=TP[26]?.W||0;const bh=TP[27]?.B||0;for(let i=0;i<Math.min(wh,10);i++){const hp=document.createElement('div');hp.className='homepc W';d.appendChild(hp);}const sep=document.createElement('div');sep.style.height='3px';d.appendChild(sep);for(let i=0;i<Math.min(bh,10);i++){const hp=document.createElement('div');hp.className='homepc B';d.appendChild(hp);}return d;}const tr=document.createElement('div');tr.className='trow';tr.appendChild(mkPts(top.slice(0,6),'top'));tr.appendChild(mkBar());tr.appendChild(mkPts(top.slice(6,12),'top'));tr.appendChild(mkHome());const br=document.createElement('div');br.className='trow';br.appendChild(mkPts(bot.slice(0,6),'bot'));br.appendChild(mkBar());br.appendChild(mkPts(bot.slice(6,12),'bot'));const bh2=document.createElement('div');bh2.className='homecol';br.appendChild(bh2);b.appendChild(tr);b.appendChild(br);}
+function uTavlaTurn(){const el=document.getElementById('tavla-turn');if(TMT){el.textContent='▶ Senin sıran';el.className='turnbar my';}else{el.textContent=(players.find(p=>p.idx!==myIdx)?.name||'Rakip')+' oynuyor...';el.className='turnbar opp';}document.getElementById('btn-roll').disabled=!TMT||TDice.length>0;document.getElementById('btn-pass').disabled=!TMT||TDice.length===0;}
+function rDice(){const area=document.getElementById('tavla-dice');const D=['','⚀','⚁','⚂','⚃','⚄','⚅'];area.innerHTML='';TDice.forEach((d,i)=>{const el=document.createElement('div');el.className='die'+(TUsed.includes(i)?' used':'');el.textContent=D[d];area.appendChild(el);});}
+function tavlaRoll(){if(!TMT||!gameActive)return;const dice=[Math.ceil(Math.random()*6),Math.ceil(Math.random()*6)];if(dice[0]===dice[1])TDice=[dice[0],dice[0],dice[0],dice[0]];else TDice=[...dice];TUsed=[];sendToAll({t:'tavla-roll',dice:TDice});rDice();uTavlaTurn();addSys('tavla','Zarlar: '+TDice.join(' - '));}
+function tClick(pt){if(!TMT||!gameActive||TDice.length===0)return;const myBar=TMC==='W'?25:0;const bc=TP[myBar]?.[TMC]||0;if(bc>0&&pt!==myBar){const tg=tMoves(myBar);if(tg.includes(pt)){aTavla(myBar,pt);return;}TSEL=myBar;TVTG=tg;rTavla();return;}if(TSEL===null){const d=TP[pt];if(!d||!d[TMC]||d[TMC]===0)return;const tg=tMoves(pt);TSEL=pt;TVTG=tg;rTavla();return;}if(TVTG.includes(pt)){aTavla(TSEL,pt);return;}TSEL=null;TVTG=[];rTavla();tClick(pt);}
+function tMoves(from){const rem=TDice.filter((_,i)=>!TUsed.includes(i));const tg=new Set();const dir=TMC==='W'?-1:1;const isBar=from===(TMC==='W'?25:0);const mH=TMC==='W'?26:27;const cBO=allHome(TMC);rem.forEach(d=>{let to=isBar?(TMC==='W'?25-d:d):from+dir*d;if(cBO&&(to<1||to>24)){tg.add(mH);return;}if(to>=1&&to<=24){const pd=TP[to];const oC=TMC==='W'?'B':'W';if(!pd||pd[oC]<=1)tg.add(to);}});return[...tg];}
+function allHome(col){const hr=col==='W'?[1,2,3,4,5,6]:[19,20,21,22,23,24];const bar=col==='W'?25:0;if((TP[bar]?.[col]||0)>0)return false;for(let p=1;p<=24;p++){if(hr.includes(p))continue;if((TP[p]?.[col]||0)>0)return false;}return true;}
+function aTavla(from,to){const myC=TMC;const oC=myC==='W'?'B':'W';const myBar=myC==='W'?25:0;const oppBar=myC==='W'?0:25;const myH=myC==='W'?26:27;const rem=TDice.map((_,i)=>i).filter(i=>!TUsed.includes(i));const isBar=from===(myC==='W'?25:0);const isH=to===(myC==='W'?26:27);const dir=myC==='W'?-1:1;let di=rem[0];
+  // Find the exact die: for normal moves match exact, for bearing off use smallest valid die
+  if(!isH){
+    rem.forEach(i=>{const reach=isBar?(myC==='W'?25-TDice[i]:TDice[i]):from+dir*TDice[i];if(reach===to)di=i;});
+  } else {
+    // Bearing off: prefer exact, fallback to smallest die >= distance
+    const dist=myC==='W'?from:(25-from);
+    let exactDi=-1,overDi=-1,overVal=99;
+    rem.forEach(i=>{
+      const d2=TDice[i];
+      if(d2===dist){exactDi=i;}
+      else if(d2>dist&&d2<overVal){overVal=d2;overDi=i;}
+    });
+    di=exactDi>=0?exactDi:(overDi>=0?overDi:rem[0]);
+  }TP[from][myC]=Math.max(0,TP[from][myC]-1);if(isH){TP[myH][myC]=(TP[myH][myC]||0)+1;}else{if(TP[to][oC]===1){TP[to][oC]=0;TP[oppBar][oC]=(TP[oppBar][oC]||0)+1;addSys('tavla','Vurdu!');}TP[to][myC]=(TP[to][myC]||0)+1;}TUsed.push(di);TSEL=null;TVTG=[];sendToAll({t:'tavla-move',from,to});const hc=TP[myH]?.[myC]||0;if(hc>=15){gameOver(true,'Tüm taşlarını çıkardın!');return;}const rem2=TDice.filter((_,i)=>!TUsed.includes(i));if(rem2.length===0||!tHasMv(myC)){setTimeout(()=>{TUsed=[];TDice=[];TMT=false;rTavla();rDice();uTavlaTurn();},320);}else{rTavla();rDice();uTavlaTurn();}}
+function tHasMv(col){const bar=col==='W'?25:0;const srcs=[];if((TP[bar]?.[col]||0)>0)srcs.push(bar);else for(let i=1;i<=24;i++)if((TP[i]?.[col]||0)>0)srcs.push(i);return srcs.some(s=>tMoves(s).length>0);}
+function tavlaPass(){if(!TMT)return;TDice=[];TUsed=[];TMT=false;sendToAll({t:'tavla-pass'});rTavla();rDice();uTavlaTurn();}
+function tavlaMsg(d){
+  if(d.fromIdx===myIdx)return;
+  if(d.t==='tavla-roll'){
+    TDice=[...d.dice];TUsed=[];rDice();uTavlaTurn();
+    addSys('tavla',(players.find(p=>p.idx===d.fromIdx)?.name||'Rakip')+' zar attı: '+d.dice.join(' - '));
+  } else if(d.t==='tavla-move'){
+    // actC = opponent's color (the one who moved)
+    const actC = TMC==='W'?'B':'W';
+    const myBarC = TMC; // my color for hit detection
+    const myBar = TMC==='W'?25:0;
+    const oppH = actC==='W'?26:27;
+    const oppBar = actC==='W'?25:0;
+    if(d.from>=0) TP[d.from][actC]=Math.max(0,(TP[d.from][actC]||0)-1);
+    const isH = d.to===(actC==='W'?26:27);
+    if(isH){
+      TP[oppH][actC]=(TP[oppH][actC]||0)+1;
+    } else {
+      // Check if my piece was hit
+      if(TP[d.to][myBarC]===1){
+        TP[d.to][myBarC]=0;
+        TP[myBar][myBarC]=(TP[myBar][myBarC]||0)+1;
+        addSys('tavla','Vuruldun!');
+      }
+      TP[d.to][actC]=(TP[d.to][actC]||0)+1;
+    }
+    TDice=[];TUsed=[];TMT=true;
+    rTavla();rDice();uTavlaTurn();
+    const hc=TP[oppH]?.[actC]||0;
+    if(hc>=15) gameOver(false,'Rakip tüm taşlarını çıkardı!');
+  } else if(d.t==='tavla-pass'){
+    TDice=[];TUsed=[];TMT=true;rTavla();rDice();uTavlaTurn();
+  }
+}
+
+// ============================================================
+// UNO (multi-player 3-6)
+// ============================================================
+// State (all players keep full state via host broadcast)
+let UState={
+  deck:[],discard:[],hands:{}, // {playerIdx: [...cards]}
+  currentIdx:0, direction:1,   // 1=clockwise, -1=reverse
+  currentColor:'', drawStack:0,
+  finished:[],                  // order of finishers
+  mustDraw:false, drewThisTurn:false
+};
+let unoSortMode='color';
+let unoPlayableOnly=false;
+const UCOLS=['red','blue','green','yellow'];
+const UCBG={red:'#e74c3c',blue:'#3498db',green:'#2ecc71',yellow:'#f1c40f',black:'#2c3e50'};
+const UCNAMES={red:'🔴 Kırmızı',blue:'🔵 Mavi',green:'🟢 Yeşil',yellow:'🟡 Sarı'};
+
+function buildUDeck(){
+  const d=[];
+  UCOLS.forEach(col=>{
+    ['0','1','2','3','4','5','6','7','8','9','Skip','Rev','+2'].forEach(v=>{d.push({col,val:v});if(v!=='0')d.push({col,val:v});});
+  });
+  for(let i=0;i<4;i++){d.push({col:'black',val:'Wild'});d.push({col:'black',val:'Wild+4'});}
+  for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]];}
+  return d;
+}
+function unoCanPlay(card,top,curC){
+  if(!top)return true;
+  if(card.col==='black')return true;
+  if(card.col===curC)return true;
+  if(card.val===top.val)return true;
+  return false;
+}
+
+
+function unoCardOrder(card){
+  const colorOrder={red:0,yellow:1,green:2,blue:3,black:4};
+  const valueOrder={Skip:10,Rev:11,'+2':12,Wild:13,'Wild+4':14};
+  const numVal = /^\d+$/.test(String(card.val)) ? parseInt(card.val,10) : (valueOrder[card.val] ?? 99);
+  if(unoSortMode==='value') return [numVal,colorOrder[card.col]??9];
+  return [colorOrder[card.col]??9,numVal];
+}
+function unoSortHand(mode){
+  unoSortMode=mode||unoSortMode;
+  const hand=UState.hands?.[myIdx];
+  if(!hand)return;
+  hand.sort((a,b)=>{const ao=unoCardOrder(a),bo=unoCardOrder(b); return ao[0]-bo[0] || ao[1]-bo[1];});
+  renderUno();
+}
+function unoTogglePlayableOnly(){
+  unoPlayableOnly=!unoPlayableOnly;
+  renderUno();
+}
+function unoActionText(){
+  if(UState.drawStack>0) return '+'+UState.drawStack+' cezası aktif';
+  if(UState.drewThisTurn) return 'Kart çektin, istersen pas geç';
+  if(UState.currentIdx===myIdx) return 'Bir kart seç veya desteden çek';
+  return 'Rakibini bekliyorsun';
+}
+function initUno(){
+  document.getElementById('uno-myh').innerHTML='<div style="color:var(--muted);font-family:Cinzel,serif;font-size:0.75rem;text-align:center;width:100%;padding:12px">Oyun başlatılıyor...</div>';
+  // Only host initializes and distributes
+  if(isHost){
+    const deck=buildUDeck();
+    const hands={};
+    players.forEach(p=>{hands[p.idx]=deck.splice(0,7);});
+    let first;do{first=deck.splice(0,1)[0];}while(first.col==='black');
+    UState={
+      deck,discard:[first],hands,
+      currentIdx:players[0].idx,direction:1,
+      currentColor:first.col,drawStack:0,
+      finished:[],mustDraw:false,drewThisTurn:false
+    };
+    // Broadcast full state
+    broadcastFullUnoState();
+  }
+  // Guest waits for state
+  if(UState.hands?.[myIdx]) unoSortHand(unoSortMode);
+  renderUno();updateUnoTurn();
+  addSys('uno','Oyun başladı!');
+}
+
+function broadcastFullUnoState(){
+  // Send each player their private hand + shared state
+  players.forEach(p=>{
+    if(p.idx===myIdx)return;
+    const conn=hostConns.find((c,i)=>players[i+1]?.idx===p.idx)||hostConns[p.idx-1];
+    const state={
+      t:'uno-state',
+      discard:UState.discard,
+      myHand:UState.hands[p.idx],
+      handCounts:{},
+      currentIdx:UState.currentIdx,
+      direction:UState.direction,
+      currentColor:UState.currentColor,
+      drawStack:UState.drawStack,
+      finished:UState.finished,
+      mustDraw:UState.mustDraw,
+      drewThisTurn:UState.drewThisTurn,
+      deckSize:UState.deck.length
+    };
+    players.forEach(pl=>{state.handCounts[pl.idx]=UState.hands[pl.idx]?.length||0;});
+    if(conn&&conn.open)conn.send(state);
+  });
+  // Update self
+  renderUno();updateUnoTurn();
+}
+
+function unoMsg(d){
+  if(d.t==='uno-state'){
+    // Guest receives state
+    UState.discard=d.discard;
+    UState.hands[myIdx]=d.myHand;
+    UState.handCounts=d.handCounts;
+    UState.currentIdx=d.currentIdx;
+    UState.direction=d.direction;
+    UState.currentColor=d.currentColor;
+    UState.drawStack=d.drawStack;
+    UState.finished=d.finished||[];
+    UState.mustDraw=d.mustDraw;
+    UState.drewThisTurn=d.drewThisTurn;
+    UState.deckSize=d.deckSize;
+    if(UState.hands?.[myIdx]) UState.hands[myIdx].sort((a,b)=>{const ao=unoCardOrder(a),bo=unoCardOrder(b);return ao[0]-bo[0]||ao[1]-bo[1];});
+    renderUno();updateUnoTurn();
+  } else if(d.t==='uno-play'&&isHost){
+    applyUnoPlay(d.fromIdx,d.cardIdx,d.chosenColor,d.cardRef,d.matchOrdinal);
+  } else if(d.t==='uno-draw'&&isHost){
+    applyUnoDraw(d.fromIdx);
+  } else if(d.t==='uno-pass'&&isHost){
+    applyUnoPass(d.fromIdx);
+  } else if(d.t==='uno-shout'){
+    const p=players.find(p=>p.idx===d.fromIdx);
+    const el=document.getElementById('unoshout');el.textContent='UNO!';el.classList.add('show');
+    setTimeout(()=>el.classList.remove('show'),1200);
+    toast(p?.name+' UNO dedi!');
+  }
+}
+
+function applyUnoPlay(fromIdx,cardIdx,chosenColor,cardRef=null,matchOrdinal=0){
+  if(!isHost)return;
+  const hand=UState.hands[fromIdx];
+  const resolvedIdx=unoResolveCardIndex(fromIdx,cardIdx,cardRef,matchOrdinal);
+  if(!hand||resolvedIdx<0||resolvedIdx>=hand.length)return;
+  const card=hand[resolvedIdx];
+  const top=UState.discard[UState.discard.length-1];
+  if(!unoCanPlay(card,top,UState.currentColor))return;
+  hand.splice(resolvedIdx,1);
+  UState.discard.push(card);
+  let newColor=card.col==='black'?(chosenColor||'red'):card.col;
+  let skip=false,reverse=false,drawFor=0;
+  if(card.val==='Skip')skip=true;
+  if(card.val==='Rev'){reverse=true;if(players.length===2)skip=true;}
+  if(card.val==='+2'){drawFor=2;}
+  if(card.val==='Wild+4'){drawFor=4;}
+  if(reverse)UState.direction*=-1;
+  UState.currentColor=newColor;
+  // Determine next player
+  if(drawFor>0){UState.drawStack+=drawFor;}
+  const nextIdx=getNextPlayerIdx(fromIdx,skip,UState.direction);
+  UState.currentIdx=nextIdx;
+  UState.drewThisTurn=false;
+  UState.mustDraw=UState.drawStack>0;
+  // Check win
+  if(hand.length===0){
+    UState.finished.push(fromIdx);
+    const remaining=players.filter(p=>!UState.finished.includes(p.idx)&&(UState.hands[p.idx]?.length||0)>0);
+    if(remaining.length<=1){
+      if(remaining.length===1)UState.finished.push(remaining[0].idx);
+      // Game over
+      const rankings=UState.finished.map((idx,i)=>({name:players.find(p=>p.idx===idx)?.name||'?',info:''}));
+      broadcastAll({t:'uno-gameover',rankings,winnerIdx:UState.finished[0]});
+      handleUnoGameOver(rankings,UState.finished[0]);return;
+    }
+  }
+  broadcastFullUnoState();
+}
+
+function getNextPlayerIdx(fromIdx,skip,direction){
+  const activePs=players.filter(p=>!UState.finished.includes(p.idx));
+  if(activePs.length<2)return fromIdx;
+  const cur=activePs.findIndex(p=>p.idx===fromIdx);
+  let next=(cur+direction+activePs.length)%activePs.length;
+  if(skip)next=(next+direction+activePs.length)%activePs.length;
+  return activePs[next].idx;
+}
+
+function unoReshuffleDeck(){
+  if(UState.discard.length<=1)return;
+  const top=UState.discard[UState.discard.length-1];
+  const reshuffled=UState.discard.splice(0,UState.discard.length-1);
+  // Shuffle
+  for(let i=reshuffled.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[reshuffled[i],reshuffled[j]]=[reshuffled[j],reshuffled[i]];}
+  // Reset wild cards to black
+  reshuffled.forEach(c=>{if(c.val==='Wild'||c.val==='Wild+4')c.col='black';});
+  UState.deck.push(...reshuffled);
+  addSys('uno','Deste bitti, çöplük karıştırıldı!');
+}
+function applyUnoDraw(fromIdx){
+  if(!isHost)return;
+  const count=UState.drawStack>0?UState.drawStack:1;
+  // Reshuffle if needed
+  if(UState.deck.length<count) unoReshuffleDeck();
+  const actualCount=Math.min(count,UState.deck.length);
+  const drawn=UState.deck.splice(0,actualCount);
+  if(!UState.hands[fromIdx])UState.hands[fromIdx]=[];
+  UState.hands[fromIdx].push(...drawn);
+  UState.drawStack=0;UState.mustDraw=false;
+  if(count>1){
+    // Forced stack draw — auto skip to next player, no pass option
+    UState.drewThisTurn=false;
+    UState.currentIdx=getNextPlayerIdx(fromIdx,false,UState.direction);
+  } else {
+    // Single draw — player can pass or play
+    UState.drewThisTurn=true;
+  }
+  broadcastFullUnoState();
+}
+
+function applyUnoPass(fromIdx){
+  if(!isHost)return;
+  if(!UState.drewThisTurn)return;
+  UState.currentIdx=getNextPlayerIdx(fromIdx,false,UState.direction);
+  UState.drewThisTurn=false;
+  broadcastFullUnoState();
+}
+
+function handleUnoGameOver(rankings,winnerIdx){
+  const iWon=winnerIdx===myIdx;
+  gameOver(iWon,'',rankings);
+}
+
+function unoCardSig(card){ return card ? `${card.col}|${card.val}` : ''; }
+function unoCardOrdinalInHand(hand, idx){
+  const card=hand?.[idx];
+  if(!card) return 0;
+  const sig=unoCardSig(card);
+  let ord=0;
+  for(let i=0;i<=idx;i++) if(unoCardSig(hand[i])===sig) ord++;
+  return ord;
+}
+function unoResolveCardIndex(fromIdx, cardIdx, cardRef, matchOrdinal){
+  const hand=UState.hands[fromIdx]||[];
+  if(Number.isInteger(cardIdx) && cardIdx>=0 && cardIdx<hand.length){
+    if(!cardRef || (hand[cardIdx].col===cardRef.col && hand[cardIdx].val===cardRef.val)) return cardIdx;
+  }
+  if(cardRef){
+    let seen=0;
+    for(let i=0;i<hand.length;i++){
+      const c=hand[i];
+      if(c && c.col===cardRef.col && c.val===cardRef.val){
+        seen++;
+        if(!matchOrdinal || seen===matchOrdinal) return i;
+      }
+    }
+  }
+  return -1;
+}
+
+let unoDraggedMeta=null, unoTouchMeta=null;
+function unoCleanupDropHints(){
+  document.getElementById('uno-discard')?.classList.remove('drag-over');
+  document.querySelector('#screen-uno .uno-center')?.classList.remove('drag-over');
+}
+function unoSetDropHint(on){
+  document.getElementById('uno-discard')?.classList.toggle('drag-over',!!on);
+  document.querySelector('#screen-uno .uno-center')?.classList.toggle('drag-over',!!on);
+}
+function unoGetCardMeta(idx){
+  const hand=UState.hands[myIdx]||[];
+  const card=hand[idx];
+  if(!card) return null;
+  return {idx, cardRef:{col:card.col,val:card.val}, matchOrdinal:unoCardOrdinalInHand(hand,idx)};
+}
+function unoCanPlayMeta(meta){
+  if(!meta) return false;
+  const hand=UState.hands[myIdx]||[];
+  const resolvedIdx=unoResolveCardIndex(myIdx, meta.idx, meta.cardRef, meta.matchOrdinal);
+  const card=hand[resolvedIdx];
+  return !!card && UState.currentIdx===myIdx && gameActive && !UState.mustDraw && unoCanPlay(card,UState.discard[UState.discard.length-1],UState.currentColor);
+}
+function unoPlayCardByMeta(meta){
+  if(!unoCanPlayMeta(meta)){
+    if(UState.mustDraw) toast('Önce kart çekmelisin!');
+    else toast('Bu kartı oynayamazsın!');
+    return;
+  }
+  const hand=UState.hands[myIdx]||[];
+  const resolvedIdx=unoResolveCardIndex(myIdx, meta.idx, meta.cardRef, meta.matchOrdinal);
+  const card=hand[resolvedIdx];
+  if(!card) return;
+  if(card.col==='black'){
+    window._uPendingIdx=resolvedIdx;
+    window._uPendingCardRef={col:card.col,val:card.val};
+    window._uPendingCardOrdinal=unoCardOrdinalInHand(hand,resolvedIdx);
+    document.getElementById('uno-colpick').style.display='block';
+    return;
+  }
+  if(isHost) applyUnoPlay(myIdx,resolvedIdx,null,{col:card.col,val:card.val},unoCardOrdinalInHand(hand,resolvedIdx));
+  else sendToHost({t:'uno-play',cardIdx:resolvedIdx,cardRef:{col:card.col,val:card.val},matchOrdinal:unoCardOrdinalInHand(hand,resolvedIdx),chosenColor:null});
+}
+function setupUnoDropzone(){
+  const discard=document.getElementById('uno-discard');
+  const center=document.querySelector('#screen-uno .uno-center');
+  if(!discard || discard.dataset.dragReady==='1') return;
+  const allow=(e)=>{ if(unoDraggedMeta){ e.preventDefault(); unoSetDropHint(true);} };
+  discard.addEventListener('dragover',allow);
+  center?.addEventListener('dragover',allow);
+  discard.addEventListener('dragenter',()=>{ if(unoDraggedMeta) unoSetDropHint(true); });
+  center?.addEventListener('dragenter',()=>{ if(unoDraggedMeta) unoSetDropHint(true); });
+  discard.addEventListener('dragleave',()=>unoCleanupDropHints());
+  center?.addEventListener('dragleave',()=>unoCleanupDropHints());
+  const onDrop=(e)=>{ e.preventDefault(); const meta=unoDraggedMeta; unoCleanupDropHints(); unoDraggedMeta=null; if(meta) unoPlayCardByMeta(meta); };
+  discard.addEventListener('drop',onDrop);
+  center?.addEventListener('drop',onDrop);
+  discard.dataset.dragReady='1';
+}
+function unoTouchMove(ev){
+  if(!unoTouchMeta) return;
+  const t=ev.touches[0];
+  if(!t) return;
+  ev.preventDefault();
+  const ghost=unoTouchMeta.ghost;
+  ghost.style.left=t.clientX+'px';
+  ghost.style.top=t.clientY+'px';
+  const target=document.elementFromPoint(t.clientX,t.clientY);
+  const over=!!target && (target.closest('#uno-discard') || target.closest('#screen-uno .uno-center'));
+  unoSetDropHint(over);
+}
+function unoTouchEnd(ev){
+  if(!unoTouchMeta) return;
+  const changed=ev.changedTouches && ev.changedTouches[0];
+  let over=false;
+  if(changed){
+    const target=document.elementFromPoint(changed.clientX,changed.clientY);
+    over=!!target && (target.closest('#uno-discard') || target.closest('#screen-uno .uno-center'));
+  }
+  const ghost=unoTouchMeta.ghost;
+  const meta=unoTouchMeta.meta;
+  ghost?.remove();
+  unoTouchMeta=null;
+  unoCleanupDropHints();
+  document.removeEventListener('touchmove',unoTouchMove,{passive:false});
+  document.removeEventListener('touchend',unoTouchEnd);
+  document.removeEventListener('touchcancel',unoTouchEnd);
+  if(over) unoPlayCardByMeta(meta);
+}
+function unoStartTouchDrag(ev, meta, sourceEl){
+  if(!unoCanPlayMeta(meta)) return;
+  const t=ev.touches[0];
+  if(!t) return;
+  ev.preventDefault();
+  const ghost=sourceEl.cloneNode(true);
+  ghost.classList.add('touch-dragging');
+  document.body.appendChild(ghost);
+  ghost.style.left=t.clientX+'px';
+  ghost.style.top=t.clientY+'px';
+  unoTouchMeta={meta,ghost};
+  document.addEventListener('touchmove',unoTouchMove,{passive:false});
+  document.addEventListener('touchend',unoTouchEnd,{passive:false});
+  document.addEventListener('touchcancel',unoTouchEnd,{passive:false});
+}
+
+function renderUno(){
+  const top=UState.discard?.[UState.discard.length-1];
+  const disc=document.getElementById('uno-discard');
+  if(top){disc.style.background=UCBG[top.col]||'#555';disc.textContent=top.val;disc.style.fontSize=top.val.length>3?'0.7rem':'1rem';}
+  document.getElementById('uno-deck-cnt').textContent=(UState.deckSize||UState.deck?.length||0)+' kart';
+  const badge=document.getElementById('uno-colbadge');
+  if(top?.col==='black'&&UState.currentColor){badge.style.display='block';badge.textContent=UCNAMES[UState.currentColor]||UState.currentColor;badge.style.color=UCBG[UState.currentColor];}
+  else{badge.style.display='none';}
+  // Direction arrow
+  const arrow=document.getElementById('uno-turn-arrow');
+  if(arrow)arrow.textContent=UState.direction===1?'↻':'↺';
+  // Opponents
+  const oppArea=document.getElementById('uno-opponents');oppArea.innerHTML='';
+  players.filter(p=>p.idx!==myIdx).forEach(p=>{
+    const cnt=isHost?UState.hands[p.idx]?.length:UState.handCounts?.[p.idx]||0;
+    const isActive=UState.currentIdx===p.idx;
+    const div=document.createElement('div');div.className='uno-opp-area'+(isActive?' active-player':'');
+    div.innerHTML=`<div class="uno-opp-name">${esc(p.name)}</div><div class="uno-opp-cards"></div>`;
+    const cardsDiv=div.querySelector('.uno-opp-cards');
+    for(let i=0;i<Math.min(cnt||0,10);i++){const cb=document.createElement('div');cb.className='ucb';cardsDiv.appendChild(cb);}
+    if(cnt>10){const lbl=document.createElement('span');lbl.style.cssText='font-size:0.6rem;color:var(--muted);font-family:Cinzel,serif';lbl.textContent='+';cardsDiv.appendChild(lbl);}
+    oppArea.appendChild(div);
+  });
+  // Status chips
+  const myHand=UState.hands?.[myIdx]||[];
+  const isMyTurn=UState.currentIdx===myIdx;
+  const playableIdxs=[];
+  myHand.forEach((card,idx)=>{ if(isMyTurn&&unoCanPlay(card,top,UState.currentColor)&&!UState.mustDraw) playableIdxs.push(idx); });
+  const chipTurn=document.getElementById('uno-chip-turn'); if(chipTurn) chipTurn.textContent=isMyTurn?'Sıra sende':'Sıra: '+(players.find(p=>p.idx===UState.currentIdx)?.name||'?');
+  const chipRule=document.getElementById('uno-chip-rule'); if(chipRule) chipRule.textContent=unoActionText();
+  const chipCount=document.getElementById('uno-chip-count'); if(chipCount) chipCount.textContent='Elindeki kart: '+myHand.length;
+  const helpTxt=document.getElementById('uno-help-txt'); if(helpTxt) helpTxt.textContent=unoPlayableOnly?'Sadece oynanabilir kartlar gösteriliyor.':'Kartı ortaya sürükle ya da dokun.';
+  setupUnoDropzone();
+  unoCleanupDropHints();
+  const sortColor=document.getElementById('uno-sort-color'); const sortValue=document.getElementById('uno-sort-value'); const playableBtn=document.getElementById('uno-show-playable');
+  if(sortColor) sortColor.classList.toggle('active-filter',unoSortMode==='color');
+  if(sortValue) sortValue.classList.toggle('active-filter',unoSortMode==='value');
+  if(playableBtn){ playableBtn.classList.toggle('active-filter',unoPlayableOnly); playableBtn.textContent=unoPlayableOnly?'Tüm Kartları Göster':'Oynanabilirleri Göster'; }
+  const mh=document.getElementById('uno-myh');mh.innerHTML='';
+  myHand.forEach((card,idx)=>{
+    const can=isMyTurn&&unoCanPlay(card,top,UState.currentColor)&&!UState.mustDraw;
+    if(unoPlayableOnly && !can) return;
+    const meta=unoGetCardMeta(idx);
+    const el=document.createElement('div');el.className='ucard '+(can?'play':'noplay');
+    el.style.background=UCBG[card.col]||'#555';
+    el.title=(can?'Oynanabilir: ':'Şu an oynanamaz: ')+card.col+' '+card.val;
+    const main=document.createElement('div');main.className='uv';main.textContent=card.val;el.appendChild(main);
+    const ts=document.createElement('span');ts.className='ts';ts.textContent=card.val;el.appendChild(ts);
+    const bs=document.createElement('span');bs.className='bs';bs.textContent=card.val;el.appendChild(bs);
+    if(can){
+      el.onclick=()=>unoPlayCardByMeta(meta);
+      el.draggable=true;
+      el.addEventListener('dragstart',(e)=>{
+        unoDraggedMeta=meta;
+        el.classList.add('dragging');
+        try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain', JSON.stringify(meta.cardRef)); }catch(_){ }
+      });
+      el.addEventListener('dragend',()=>{ el.classList.remove('dragging'); unoDraggedMeta=null; unoCleanupDropHints(); });
+      el.addEventListener('touchstart',(ev)=>unoStartTouchDrag(ev,meta,el),{passive:false});
+    }
+    mh.appendChild(el);
+  });
+  document.getElementById('uno-passbtn').disabled=!isMyTurn||!UState.drewThisTurn;
+  document.getElementById('uno-unobtn').style.display=myHand.length===2&&isMyTurn?'inline-block':'none';
+  const deckBtn=document.getElementById('uno-deck-btn'); if(deckBtn) deckBtn.style.opacity=(isMyTurn?1:0.65);
+  if(!isMyTurn)document.getElementById('uno-colpick').style.display='none';
+}
+
+function updateUnoTurn(){
+  const el=document.getElementById('uno-turn');
+  const isMyTurn=UState.currentIdx===myIdx;
+  if(isMyTurn){
+    el.textContent=UState.mustDraw?'▶ Kart çekmelisin!':'▶ Senin sıran';
+    el.className='turnbar my';
+  } else {
+    const p=players.find(p=>p.idx===UState.currentIdx);
+    el.textContent=(p?.name||'?')+' oynuyor...';el.className='turnbar opp';
+  }
+}
+
+function unoPlayCard(idx){
+  const meta=unoGetCardMeta(idx);
+  if(meta) unoPlayCardByMeta(meta);
+}
+function unoPickColor(col){
+  document.getElementById('uno-colpick').style.display='none';
+  const idx=window._uPendingIdx;
+  const cardRef=window._uPendingCardRef || (UState.hands?.[myIdx]?.[idx] ? {col:UState.hands[myIdx][idx].col,val:UState.hands[myIdx][idx].val} : null);
+  const matchOrdinal=window._uPendingCardOrdinal || unoCardOrdinalInHand(UState.hands?.[myIdx]||[],idx);
+  if(isHost)applyUnoPlay(myIdx,idx,col,cardRef,matchOrdinal);
+  else sendToHost({t:'uno-play',cardIdx:idx,cardRef,matchOrdinal,chosenColor:col});
+  window._uPendingCardRef=null; window._uPendingCardOrdinal=0;
+}
+function unoDraw(){
+  if(UState.currentIdx!==myIdx||!gameActive)return;
+  if(isHost)applyUnoDraw(myIdx);
+  else sendToHost({t:'uno-draw'});
+}
+function unoPass(){
+  if(UState.currentIdx!==myIdx||!UState.drewThisTurn)return;
+  if(isHost)applyUnoPass(myIdx);
+  else sendToHost({t:'uno-pass'});
+}
+function shoutUno(){
+  const el=document.getElementById('unoshout');el.textContent='UNO!';el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),1200);
+  sendToAll({t:'uno-shout'});
+}
+
+// ============================================================
+// OKEY (4-player)
+// ============================================================
+const OCOLS=['kirmizi','sari','mavi','siyah'];
+const OCLBL={kirmizi:'🔴',sari:'🟡',mavi:'🔵',siyah:'⚫'};
+const OCCSS={kirmizi:'#e74c3c',sari:'#c9a800',mavi:'#2471a3',siyah:'#34495e'};
+
+let OState={
+  pile:[],discard:[],hands:{},indicator:null,
+  currentIdx:0,handCounts:{},finished:[],opened:{}
+};
+let OSEL=null,ODRAWN=false,ODRAG=null,OSLOTS=null;
+
+function buildOkeyPile(){
+  const t=[];
+  OCOLS.forEach(col=>{for(let n=1;n<=13;n++){t.push({col,num:n,j:false});t.push({col,num:n,j:false});}});
+  t.push({col:'okey',num:0,j:true});t.push({col:'okey',num:0,j:true});
+  for(let i=t.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[t[i],t[j]]=[t[j],t[i]];}
+  return t;
+}
+function isOkeyT(t){if(!OState.indicator)return false;if(t.j)return true;const nxt=OState.indicator.num%13+1;return t.col===OState.indicator.col&&t.num===nxt;}
+function otiLbl(t){if(!t)return'?';if(t.j||isOkeyT(t))return'★';return(OCLBL[t.col]||'?')+t.num;}
+function otiSty(t){const ok=isOkeyT(t);if(!t||t.j||ok)return{bg:'linear-gradient(135deg,#f39c12,#e67e22)',col:'white'};return{bg:'#f5f0e8',col:OCCSS[t.col]||'#333'};}
+
+function initOkey(){
+  OSEL=null;ODRAWN=false;OSLOTS=null;
+  maxPlayers=4;
+  if(isHost){
+    const pile=buildOkeyPile();
+    const iIdx=Math.floor(Math.random()*pile.length);
+    const indicator=pile.splice(iIdx,1)[0];
+    const hands={};
+    // First player gets 15, others get 14
+    players.forEach((p,pi)=>{hands[p.idx]=pile.splice(0,pi===0?15:14);});
+    OState={pile,discard:[],hands,indicator,currentIdx:players[0].idx,handCounts:{},finished:[],opened:{}};
+    players.forEach(p=>{OState.handCounts[p.idx]=OState.hands[p.idx].length;});
+    broadcastFullOkeyState();
+  }
+  renderOkey();updateOkeyTurn();
+  addSys('okey','Oyun başladı! 4 kişilik masa.');
+}
+
+function broadcastFullOkeyState(){
+  players.forEach(p=>{
+    if(p.idx===myIdx)return;
+    const conn=hostConns[p.idx-1];
+    const state={
+      t:'okey-state',
+      indicator:OState.indicator,
+      myHand:OState.hands[p.idx],
+      discard:OState.discard,
+      handCounts:{},
+      currentIdx:OState.currentIdx,
+      pileSize:OState.pile.length,
+      finished:OState.finished,
+      opened:OState.opened
+    };
+    players.forEach(pl=>{state.handCounts[pl.idx]=OState.hands[pl.idx]?.length||0;});
+    if(conn&&conn.open)conn.send(state);
+  });
+  renderOkey();updateOkeyTurn();
+}
+
+function okeyMsg(d){
+  if(d.t==='okey-state'){
+    const prevCount=OState.hands[myIdx]?.length||0;
+    OState.indicator=d.indicator;
+    OState.hands[myIdx]=d.myHand;
+    OState.discard=d.discard;
+    OState.handCounts=d.handCounts;
+    OState.currentIdx=d.currentIdx;
+    OState.pileSize=d.pileSize;
+    OState.finished=d.finished||[];
+    OState.opened=d.opened||{};
+    const newCount=OState.hands[myIdx]?.length||0;
+    if(d.currentIdx===myIdx && newCount>prevCount){ODRAWN=true;}
+    else if(d.currentIdx!==myIdx){ODRAWN=false;OSEL=null;}
+  } else if(d.t==='okey-draw-pile'&&isHost){
+    applyOkeyDraw(d.fromIdx,'pile');
+  } else if(d.t==='okey-draw-discard'&&isHost){
+    applyOkeyDraw(d.fromIdx,'discard');
+  } else if(d.t==='okey-discard'&&isHost){
+    applyOkeyDiscard(d.fromIdx,d.tileIdx);
+  } else if(d.t==='okey-declare'&&isHost){
+    applyOkeyDeclare(d.fromIdx);
+  } else if(d.t==='okey-open'&&isHost){
+    applyOkeyOpen(d.fromIdx,d.mode);
+  } else if(d.t==='okey-open-result'){
+    if(!d.ok)toast(d.reason||'El açılamadı');
+  }
+}
+
+
+function normalizeOkeyTile(t){
+  return {col:t.col,num:t.num,j:!!t.j};
+}
+function groupLabelFromMode(mode){
+  return mode==='seri'?'Seri':'Sıralı';
+}
+function okeyCanOpenByMode(hand,mode){
+  const tiles=(hand||[]).map((t,i)=>({...normalizeOkeyTile(t),id:i}));
+  const jokers=tiles.filter(t=>t.j||isOkeyT(t)).length;
+  const normal=tiles.filter(t=>!(t.j||isOkeyT(t)));
+  const memo=new Map();
+
+  function key(rem,j){
+    return rem.map(t=>`${t.col}:${t.num}:${t.id}`).sort().join('|')+'#'+j;
+  }
+
+  function genSetGroups(rem,j,base){
+    const sameNum=rem.filter(t=>t.num===base.num && t.col!==base.col);
+    const groups=[];
+    const candidates=[];
+    for(const t of sameNum){
+      if(!candidates.some(x=>x.col===t.col)) candidates.push(t);
+    }
+    // size 3
+    for(let mask=0; mask < (1<<candidates.length); mask++){
+      const picked=[base];
+      let colors=new Set([base.col]);
+      for(let i=0;i<candidates.length;i++) if(mask&(1<<i)){
+        if(colors.has(candidates[i].col)) { colors=null; break; }
+        colors.add(candidates[i].col); picked.push(candidates[i]);
+      }
+      if(!colors) continue;
+      if(picked.length>4) continue;
+      const need3=Math.max(0,3-picked.length);
+      const need4=Math.max(0,4-picked.length);
+      if(need3<=j) groups.push({tiles:picked,jokers:need3});
+      if(picked.length>=3) groups.push({tiles:picked,jokers:0});
+      else if(need4<=j && picked.length<4) groups.push({tiles:picked,jokers:need4});
+    }
+    const uniq=[]; const seen=new Set();
+    for(const g of groups){
+      const k=g.tiles.map(t=>t.id).sort((a,b)=>a-b).join(',')+'#'+g.jokers;
+      if(!seen.has(k) && g.tiles.length+g.jokers>=3 && g.tiles.length+g.jokers<=4){ seen.add(k); uniq.push(g); }
+    }
+    return uniq;
+  }
+
+  function genRunGroups(rem,j,base){
+    const sameColor=rem.filter(t=>t.col===base.col);
+    const numMap=new Map();
+    for(const t of sameColor){ if(!numMap.has(t.num)) numMap.set(t.num,[]); numMap.get(t.num).push(t); }
+    const groups=[];
+    for(let start=Math.max(1,base.num-4); start<=base.num; start++){
+      for(let len=3; len<=7; len++){
+        const end=start+len-1;
+        if(end>13 || !(base.num>=start && base.num<=end)) continue;
+        const picked=[];
+        let need=0;
+        let valid=true;
+        for(let n=start;n<=end;n++){
+          const arr=numMap.get(n);
+          if(arr && arr.length){ picked.push(arr[0]); }
+          else need++;
+          if(need>j){ valid=false; break; }
+        }
+        if(valid) groups.push({tiles:picked,jokers:need});
+      }
+    }
+    const uniq=[]; const seen=new Set();
+    for(const g of groups){
+      const k=g.tiles.map(t=>t.id).sort((a,b)=>a-b).join(',')+'#'+g.jokers;
+      if(!seen.has(k)){ seen.add(k); uniq.push(g); }
+    }
+    return uniq;
+  }
+
+  function solve(rem,j){
+    if(rem.length===0) return j===0;
+    const k=key(rem,j);
+    if(memo.has(k)) return memo.get(k);
+    const base=rem[0];
+    let groups=[];
+    if(mode==='seri') groups=genSetGroups(rem,j,base);
+    else groups=genRunGroups(rem,j,base);
+    for(const g of groups){
+      const used=new Set(g.tiles.map(t=>t.id));
+      const next=rem.filter(t=>!used.has(t.id));
+      if(solve(next,j-g.jokers)){ memo.set(k,true); return true; }
+    }
+    memo.set(k,false); return false;
+  }
+
+  return solve(normal,jokers);
+}
+
+function applyOkeyOpen(fromIdx,mode){
+  if(!isHost) return;
+  const hand=OState.hands[fromIdx]||[];
+  const ok=okeyCanOpenByMode(hand,mode);
+  if(!ok){
+    if(fromIdx===myIdx) toast(mode==='seri'?'Bu elde geçerli seri dizilim yok!':'Bu elde geçerli sıralı dizilim yok!');
+    else {
+      const conn=hostConns[fromIdx-1];
+      if(conn&&conn.open) conn.send({t:'okey-open-result',ok:false,reason:mode==='seri'?'Geçerli seri dizilim bulunamadı.':'Geçerli sıralı dizilim bulunamadı.'});
+    }
+    return;
+  }
+  OState.opened[fromIdx]=mode;
+  const p=players.find(x=>x.idx===fromIdx);
+  addSys('okey',(p?.name||'Bir oyuncu')+' el açtı: '+groupLabelFromMode(mode));
+  broadcastAll({t:'chat',msg:'El açtı: '+groupLabelFromMode(mode),fromIdx:fromIdx});
+  broadcastFullOkeyState();
+}
+
+function okeyOpenHand(){
+  if(!ODRAWN){toast('Önce taş çek!');return;}
+  const mode=document.getElementById('okey-open-mode').value;
+  if(isHost) applyOkeyOpen(myIdx,mode);
+  else sendToHost({t:'okey-open',mode});
+}
+
+function applyOkeyDraw(fromIdx,source){
+  if(!isHost)return;
+  let tile;
+  if(source==='pile'){
+    if(OState.pile.length===0){toast('Deste bitti!');broadcastAll({t:'chat',msg:'Deste bitti, devam edilemiyor.',fromIdx:0});return;}
+    tile=OState.pile.pop();
+    OState.hands[fromIdx].push(tile);
+  } else {
+    if(OState.discard.length===0)return;
+    tile=OState.discard.pop();
+    OState.hands[fromIdx].push(tile);
+  }
+  OState.handCounts[fromIdx]=(OState.hands[fromIdx]?.length||0);
+  // Send drawn tile only to that player + update counts to all
+  if(fromIdx===myIdx){ODRAWN=true;}
+  else{
+    const conn=hostConns[fromIdx-1];
+    if(conn&&conn.open)conn.send({t:'okey-drew',tile,source,discard:OState.discard,pileSize:OState.pile.length});
+  }
+  broadcastFullOkeyState();
+}
+
+function applyOkeyDiscard(fromIdx,tileIdx){
+  if(!isHost)return;
+  const hand=OState.hands[fromIdx];
+  if(!hand||tileIdx>=hand.length)return;
+  const tile=hand.splice(tileIdx,1)[0];
+  OState.discard.push(tile);
+  OState.handCounts[fromIdx]=(OState.hands[fromIdx]?.length||0);
+  // Next player
+  const activePs=players.filter(p=>!OState.finished.includes(p.idx));
+  const cur=activePs.findIndex(p=>p.idx===fromIdx);
+  OState.currentIdx=activePs[(cur+1)%activePs.length].idx;
+  broadcastFullOkeyState();
+}
+
+function applyOkeyDeclare(fromIdx){
+  if(!isHost)return;
+  OState.finished.push(fromIdx);
+  const p=players.find(p=>p.idx===fromIdx);
+  if(OState.finished.length===1){
+    // First finisher wins
+    const rankings=players.map(pl=>({
+      name:pl.name,
+      info:OState.finished.includes(pl.idx)?'Tamamladı':(OState.hands[pl.idx]?.length||0)+' taş kaldı'
+    }));
+    rankings.sort((a,b)=>OState.finished.indexOf(players.find(p=>p.name===a.name)?.idx)-OState.finished.indexOf(players.find(p=>p.name===b.name)?.idx));
+    broadcastAll({t:'okey-gameover',rankings,winnerIdx:fromIdx});
+    const iWon=fromIdx===myIdx;
+    gameOver(iWon,'',rankings);
+  }
+}
+
+
+let _okeyJokerCounter=0;
+function okeyEnsureSlots(){
+  const hand=OState.hands?.[myIdx]||[];
+  const desired=Math.max(30, hand.length);
+  if(!Array.isArray(OSLOTS)){
+    OSLOTS=new Array(desired).fill(null);
+    hand.forEach((t,i)=>{OSLOTS[i]=t;});
+    return;
+  }
+  if(OSLOTS.length<desired){
+    while(OSLOTS.length<desired) OSLOTS.push(null);
+  }
+  const counts={};
+  hand.forEach(t=>{const k=okeyTileKey(t);counts[k]=(counts[k]||0)+1;});
+  const nextSlots=OSLOTS.map(slot=>{
+    if(!slot) return null;
+    const k=okeyTileKey(slot);
+    if(counts[k]>0){counts[k]--; return slot;}
+    return null;
+  });
+  hand.forEach(t=>{
+    const k=okeyTileKey(t);
+    if(counts[k]>0){
+      const emptyIdx=nextSlots.findIndex(x=>x===null);
+      if(emptyIdx===-1) nextSlots.push(t);
+      else nextSlots[emptyIdx]=t;
+      counts[k]--;
+    }
+  });
+  while(nextSlots.length<desired) nextSlots.push(null);
+  OSLOTS=nextSlots;
+}
+function okeySyncHandFromSlots(){
+  if(!Array.isArray(OSLOTS)) return;
+  OState.hands[myIdx]=OSLOTS.filter(Boolean);
+  OState.handCounts[myIdx]=OState.hands[myIdx].length;
+}
+function okeyReorderTile(fromIdx,toIdx){
+  okeyEnsureSlots();
+  if(fromIdx===null||toIdx===null||fromIdx===toIdx) return;
+  if(fromIdx<0||toIdx<0||fromIdx>=OSLOTS.length||toIdx>=OSLOTS.length) return;
+  const fromTile=OSLOTS[fromIdx];
+  if(!fromTile) return;
+  const targetTile=OSLOTS[toIdx];
+  // Swap: if target is empty just move, if occupied swap
+  OSLOTS[toIdx]=fromTile;
+  OSLOTS[fromIdx]=targetTile||null;
+  OSEL=toIdx;
+  okeySyncHandFromSlots();
+  renderOkey();
+}
+
+// ---- DRAG & DROP (mouse) ----
+function okeyDragStart(ev,idx){
+  ODRAG=idx;
+  ev.dataTransfer.effectAllowed='move';
+  try{ev.dataTransfer.setData('text/plain',String(idx));}catch(e){}
+  setTimeout(()=>{ const el=document.querySelector(`[data-slot="${idx}"]`); if(el) el.classList.add('dragging'); },0);
+}
+function okeyDragEnd(ev){
+  document.querySelectorAll('.otile.dragging').forEach(el=>el.classList.remove('dragging'));
+  document.querySelectorAll('.orack-row.drag-over,.otile.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  ODRAG=null;
+}
+function okeyDragOver(ev){
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect='move';
+  // Highlight closest slot or row
+  const tile=ev.currentTarget.classList.contains('otile')?ev.currentTarget:null;
+  const row=ev.currentTarget.classList.contains('orack-row')?ev.currentTarget:ev.currentTarget.closest('.orack-row');
+  document.querySelectorAll('.orack-row.drag-over,.otile.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  if(tile) tile.classList.add('drag-over');
+  else if(row) row.classList.add('drag-over');
+}
+function okeyDragLeave(ev){
+  const related=ev.relatedTarget;
+  if(!related||(!related.classList?.contains('otile')&&!related.closest?.('.orack-row'))) {
+    document.querySelectorAll('.orack-row.drag-over,.otile.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  }
+}
+function okeyDropTile(ev,toIdx){
+  ev.preventDefault();
+  ev.stopPropagation();
+  document.querySelectorAll('.orack-row.drag-over,.otile.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  const fromIdx=ODRAG!==null?ODRAG:parseInt(ev.dataTransfer.getData('text/plain'),10);
+  if(Number.isInteger(fromIdx)&&fromIdx!==toIdx) okeyReorderTile(fromIdx,toIdx);
+  ODRAG=null;
+}
+function okeyDropOnRow(ev,rowIndex){
+  ev.preventDefault();
+  document.querySelectorAll('.orack-row.drag-over,.otile.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  // Only fire if dropped directly on row background, not on a tile (tiles call stopPropagation)
+  okeyEnsureSlots();
+  const fromIdx=ODRAG!==null?ODRAG:parseInt(ev.dataTransfer.getData('text/plain'),10);
+  if(!Number.isInteger(fromIdx)){ODRAG=null;return;}
+  // Find first empty slot in that row
+  const start=rowIndex===0?0:15;
+  const end=Math.min(OSLOTS.length,start+15);
+  let toIdx=-1;
+  for(let i=start;i<end;i++){ if(OSLOTS[i]===null){ toIdx=i; break; } }
+  // If row is full, drop at last slot of that row (swap)
+  if(toIdx===-1) toIdx=end-1;
+  if(fromIdx!==toIdx) okeyReorderTile(fromIdx,toIdx);
+  ODRAG=null;
+}
+
+// ---- TOUCH / POINTER drag ----
+let okeyPointerDrag={active:false,fromIdx:null,ghost:null,pointerId:null};
+function okeyPointerDown(ev,idx){
+  if(ev.pointerType==='mouse'&&ev.button!==0) return;
+  okeyPointerDrag.fromIdx=idx;
+  okeyPointerDrag.pointerId=ev.pointerId;
+  // Start ghost on move, not on down (to allow click/select on short tap)
+  okeyPointerDrag._startX=ev.clientX;
+  okeyPointerDrag._startY=ev.clientY;
+  okeyPointerDrag.active=false;
+  ev.currentTarget.setPointerCapture(ev.pointerId);
+  ev.currentTarget.addEventListener('pointermove',okeyPointerMove,{passive:false});
+  ev.currentTarget.addEventListener('pointerup',okeyPointerUp,{once:true});
+  ev.currentTarget.addEventListener('pointercancel',okeyPointerCancel,{once:true});
+}
+function okeyPointerMove(ev){
+  const dx=ev.clientX-okeyPointerDrag._startX;
+  const dy=ev.clientY-okeyPointerDrag._startY;
+  if(!okeyPointerDrag.active&&Math.sqrt(dx*dx+dy*dy)>8){
+    okeyPointerDrag.active=true;
+    // Build ghost
+    const src=document.querySelector(`[data-slot="${okeyPointerDrag.fromIdx}"]`);
+    if(src){
+      const g=src.cloneNode(true);
+      g.style.cssText=`position:fixed;z-index:1300;pointer-events:none;width:${src.offsetWidth}px;height:${src.offsetHeight}px;opacity:0.85;transform:rotate(-4deg) scale(1.08);transition:none;left:${ev.clientX-src.offsetWidth/2}px;top:${ev.clientY-src.offsetHeight-10}px;`;
+      document.body.appendChild(g);
+      okeyPointerDrag.ghost=g;
+      src.classList.add('dragging');
+    }
+  }
+  if(okeyPointerDrag.active&&okeyPointerDrag.ghost){
+    const w=okeyPointerDrag.ghost.offsetWidth;
+    const h=okeyPointerDrag.ghost.offsetHeight;
+    okeyPointerDrag.ghost.style.left=(ev.clientX-w/2)+'px';
+    okeyPointerDrag.ghost.style.top=(ev.clientY-h-10)+'px';
+    // Highlight target
+    okeyPointerDrag.ghost.style.display='none';
+    const el=document.elementFromPoint(ev.clientX,ev.clientY);
+    okeyPointerDrag.ghost.style.display='';
+    document.querySelectorAll('.otile.drop-target,.orack-row.drop-target').forEach(e=>e.classList.remove('drop-target'));
+    const tgt=el?.closest?.('.otile')||el?.closest?.('.orack-row');
+    if(tgt) tgt.classList.add('drop-target');
+  }
+}
+function okeyPointerUp(ev){
+  ev.currentTarget.removeEventListener('pointermove',okeyPointerMove);
+  document.querySelectorAll('.otile.dragging').forEach(e=>e.classList.remove('dragging'));
+  document.querySelectorAll('.otile.drop-target,.orack-row.drop-target').forEach(e=>e.classList.remove('drop-target'));
+  okeyPointerDrag.ghost?.remove(); okeyPointerDrag.ghost=null;
+  if(!okeyPointerDrag.active){
+    // It was a tap/click — treat as select
+    const idx=okeyPointerDrag.fromIdx;
+    if(Number.isInteger(idx)){OSEL=OSEL===idx?null:idx;renderOkey();}
+    okeyPointerDrag={active:false,fromIdx:null,ghost:null,pointerId:null};
+    return;
+  }
+  const fromIdx=okeyPointerDrag.fromIdx;
+  okeyPointerDrag={active:false,fromIdx:null,ghost:null,pointerId:null};
+  // Find drop target
+  const el=document.elementFromPoint(ev.clientX,ev.clientY);
+  const tileEl=el?.closest?.('.otile');
+  const rowEl=el?.closest?.('.orack-row');
+  if(tileEl&&tileEl.dataset.slot!==undefined){
+    const toIdx=parseInt(tileEl.dataset.slot,10);
+    if(Number.isInteger(fromIdx)&&Number.isInteger(toIdx)&&fromIdx!==toIdx) okeyReorderTile(fromIdx,toIdx);
+  } else if(rowEl){
+    // Drop on row background — find first empty slot in that row
+    okeyEnsureSlots();
+    const rowIdx=rowEl.dataset.rowIndex!==undefined?parseInt(rowEl.dataset.rowIndex,10):0;
+    const start=rowIdx===0?0:15;
+    const end=Math.min(OSLOTS.length,start+15);
+    let toIdx=-1;
+    for(let i=start;i<end;i++){ if(OSLOTS[i]===null){ toIdx=i; break; } }
+    if(toIdx===-1) toIdx=end-1;
+    if(Number.isInteger(fromIdx)&&fromIdx!==toIdx) okeyReorderTile(fromIdx,toIdx);
+  }
+}
+function okeyPointerCancel(ev){
+  ev.currentTarget.removeEventListener('pointermove',okeyPointerMove);
+  document.querySelectorAll('.otile.dragging').forEach(e=>e.classList.remove('dragging'));
+  okeyPointerDrag.ghost?.remove(); okeyPointerDrag.ghost=null;
+  okeyPointerDrag={active:false,fromIdx:null,ghost:null,pointerId:null};
+}
+
+function renderOkey(){
+  // Indicator
+  const ind=document.getElementById('okey-ind');
+  if(OState.indicator){const s=otiSty(OState.indicator);ind.style.background=s.bg;ind.style.color=s.col;ind.style.fontFamily="'Cinzel',serif";ind.style.fontSize='0.65rem';ind.style.fontWeight='700';ind.textContent=otiLbl(OState.indicator);}
+  // Pile count
+  const pc=OState.pileSize!==undefined?OState.pileSize:OState.pile?.length||0;
+  document.getElementById('okey-pilecnt').textContent=pc+' taş';
+  // Discard
+  const dt=document.getElementById('okey-disctp');const dc=document.getElementById('okey-disccnt');
+  dc.textContent=(OState.discard?.length||0)+' taş';
+  if(OState.discard?.length>0){const top=OState.discard[OState.discard.length-1];const s=otiSty(top);dt.style.background=s.bg;dt.style.color=s.col;dt.style.fontFamily="'Cinzel',serif";dt.style.fontSize='0.65rem';dt.style.fontWeight='700';dt.textContent=otiLbl(top);}
+  // Opponents
+  const oppArea=document.getElementById('okey-opponents');oppArea.innerHTML='';
+  const relPos=['pos-left','pos-top','pos-right'];
+  players.filter(p=>p.idx!==myIdx).forEach((p,i)=>{
+    const cnt=isHost?OState.hands[p.idx]?.length:OState.handCounts?.[p.idx]||0;
+    const isActive=OState.currentIdx===p.idx;
+    const div=document.createElement('div');div.className='okey-opp-area '+(relPos[i]||'')+(isActive?' active-player':'');
+    div.innerHTML=`<div class="okey-opp-name">${esc(p.name)}</div><div class="okey-opp-tiles"></div>`;
+    const tilesDiv=div.querySelector('.okey-opp-tiles');
+    for(let i=0;i<Math.min(cnt||0,14);i++){const tb=document.createElement('div');tb.className='otb';tilesDiv.appendChild(tb);}
+    oppArea.appendChild(div);
+  });
+  // My rack
+  const myHand=OState.hands?.[myIdx]||[];
+  okeyEnsureSlots();
+  const mr=document.getElementById('okey-myr');mr.innerHTML='';
+  const topRow=document.createElement('div');topRow.className='orack-row';topRow.dataset.rowIndex='0';
+  const bottomRow=document.createElement('div');bottomRow.className='orack-row';bottomRow.dataset.rowIndex='1';
+  // Mouse drag-drop on row backgrounds
+  topRow.addEventListener('dragover',okeyDragOver);
+  bottomRow.addEventListener('dragover',okeyDragOver);
+  topRow.addEventListener('dragleave',okeyDragLeave);
+  bottomRow.addEventListener('dragleave',okeyDragLeave);
+  topRow.addEventListener('drop',(ev)=>okeyDropOnRow(ev,0));
+  bottomRow.addEventListener('drop',(ev)=>okeyDropOnRow(ev,1));
+  const slotCount=Math.max(30,OSLOTS.length);
+  for(let i=0;i<slotCount;i++){
+    const t=OSLOTS[i]||null;
+    const el=document.createElement('div');
+    el.dataset.slot=String(i);
+    if(!t){
+      el.className='otile empty';
+      // Empty slots accept drops
+      el.addEventListener('dragover',okeyDragOver);
+      el.addEventListener('dragleave',okeyDragLeave);
+      el.addEventListener('drop',(ev)=>{ev.stopPropagation();okeyDropTile(ev,i);});
+      // Pointer: clicking empty slot deselects
+      el.addEventListener('click',()=>{OSEL=null;renderOkey();});
+    }else{
+      el.className='otile'+(i===OSEL?' osel':'')+(t.j?' ojok':'');
+      const s=otiSty(t);el.style.background=s.bg;
+      el.draggable=true;
+      el.innerHTML=`<div class="tnum" style="color:${s.col}">${t.j||isOkeyT(t)?'★':t.num}</div><div class="tcol" style="color:${s.col}">${t.j||isOkeyT(t)?'OK':OCLBL[t.col]||''}</div>`;
+      // Mouse drag
+      el.addEventListener('dragstart',(ev)=>okeyDragStart(ev,i));
+      el.addEventListener('dragend',okeyDragEnd);
+      el.addEventListener('dragover',okeyDragOver);
+      el.addEventListener('dragleave',okeyDragLeave);
+      el.addEventListener('drop',(ev)=>{ev.stopPropagation();okeyDropTile(ev,i);});
+      // Pointer / touch drag (unified)
+      el.addEventListener('pointerdown',(ev)=>okeyPointerDown(ev,i),{passive:true});
+    }
+    (i<15?topRow:bottomRow).appendChild(el);
+  }
+  mr.appendChild(topRow);
+  mr.appendChild(bottomRow);
+  document.getElementById('okey-mi'+(myIdx>=0?'':'')); // dummy
+  const isMyTurn=OState.currentIdx===myIdx;
+  document.getElementById('okey-discbtn').disabled=!isMyTurn||!ODRAWN;
+  document.getElementById('okey-declbtn').disabled=!isMyTurn||!ODRAWN;
+  document.getElementById('okey-openbtn').disabled=!isMyTurn||!ODRAWN;
+  const selfOpened=OState.opened?.[myIdx];
+  document.getElementById('okey-open-state').innerHTML=selfOpened?`Elin açık <span class="okey-open-badge">${groupLabelFromMode(selfOpened)}</span>`:'Henüz el açılmadı';
+  // Update player count displays
+  const mi=document.querySelector('#okey-mi')||null;
+}
+
+function updateOkeyTurn(){
+  const el=document.getElementById('okey-turn');
+  const isMyTurn=OState.currentIdx===myIdx;
+  if(isMyTurn){
+    el.textContent='▶ Senin sıran — Taş çek!';el.className='turnbar my';
+  } else {
+    const p=players.find(p=>p.idx===OState.currentIdx);
+    el.textContent=(p?.name||'?')+' oynuyor...';el.className='turnbar opp';
+  }
+}
+
+function okeyDraw(source){
+  if(OState.currentIdx!==myIdx||ODRAWN||!gameActive)return;
+  if(source==='pile'){
+    if(isHost){applyOkeyDraw(myIdx,'pile');ODRAWN=true;renderOkey();}
+    else sendToHost({t:'okey-draw-pile'});
+  } else {
+    if(OState.discard?.length===0){toast('Çöplük boş!');return;}
+    if(isHost){applyOkeyDraw(myIdx,'discard');ODRAWN=true;renderOkey();}
+    else sendToHost({t:'okey-draw-discard'});
+  }
+}
+
+function okeyDiscard(){
+  if(OSEL===null){toast('Atmak için taş seç!');return;}
+  okeyEnsureSlots();
+  if(!OSLOTS[OSEL]){toast('Atmak için dolu bir taş seç!');return;}
+  if(!ODRAWN){toast('Önce taş çek!');return;}
+  const tileIdx=OSLOTS.slice(0,OSEL+1).filter(Boolean).length-1;
+  if(isHost){applyOkeyDiscard(myIdx,tileIdx);OSLOTS[OSEL]=null;okeySyncHandFromSlots();OSEL=null;ODRAWN=false;renderOkey();}
+  else{sendToHost({t:'okey-discard',tileIdx:tileIdx});OSEL=null;}
+}
+function okeySort(){
+  const hand=OState.hands[myIdx];if(!hand)return;
+  hand.sort((a,b)=>{if(a.j)return 1;if(b.j)return-1;const ci=OCOLS.indexOf(a.col)-OCOLS.indexOf(b.col);return ci||a.num-b.num;});
+  OSLOTS=new Array(Math.max(30,hand.length)).fill(null);
+  hand.forEach((t,i)=>{OSLOTS[i]=t;});
+  OSEL=null;renderOkey();
+}
+function okeyDeclare(){
+  if(!ODRAWN){toast('Önce taş çek!');return;}
+  if(isHost){applyOkeyDeclare(myIdx);}
+  else sendToHost({t:'okey-declare'});
+}
+
+// Handle okey drew message (guest)
+const _origOkeyMsg=okeyMsg;
+// Patched in handleHostMsg above
+
+// ============================================================
+// INIT
+// ============================================================
+
+
+function unoBestPlayableIndex(){
+  const hand=UState.hands?.[myIdx]||[]; const top=UState.discard?.[UState.discard.length-1];
+  const playable=[]; hand.forEach((c,i)=>{if(unoCanPlay(c,top,UState.currentColor)&&!UState.mustDraw) playable.push({c,i});});
+  if(!playable.length) return -1;
+  const score = (card)=>{ let s=0; if(card.col==='black') s-=4; if(card.val==='+2') s+=6; if(card.val==='Skip'||card.val==='Rev') s+=5; if(card.val==='Wild+4') s+=8; if(/^\d+$/.test(String(card.val))) s+=parseInt(card.val,10)/10; const sameColor=(hand.filter(x=>x.col===card.col).length); s += sameColor; return s; };
+  playable.sort((a,b)=>score(b.c)-score(a.c)); return playable[0].i;
+}
+function unoSuggestMove(){ const idx=unoBestPlayableIndex(); if(idx<0){toast('En iyi hamle: kart çek'); return;} const card=UState.hands[myIdx][idx]; toast('Öneri: '+(card.col==='black'?'özel kart':'kartı oyna')+' · '+card.val); }
+function unoApplySeatClasses(div,seat){div.classList.add(seat);}
+function unoMaybePenalty(){ if(!isHost||UPendingUno===null) return; const idx=UPendingUno; const hand=UState.hands[idx]||[]; if(hand.length===1){ const drawn=UState.deck.splice(0,2); hand.push(...drawn); addSys('uno',(players.find(p=>p.idx===idx)?.name||'Bir oyuncu')+' UNO demedi, +2 cezası aldı!'); } UPendingUno=null; }
+
+
+// Okey helpers
+function okeyTileKey(t){ return t ? `${t.col||'j'}-${t.num||0}-${t.j?1:0}` : 'x'; }
+function okeyAllTiles(){ return OState.hands?.[myIdx]||[]; }
+function okeyHintScore(tile, hand){ if(!tile) return -999; if(tile.j||isOkeyT(tile)) return 999; let score=0; const sameNum=hand.filter(t=>t&&t.col!==tile.col&&!t.j&&t.num===tile.num).length; score += sameNum*4; const sameColor=hand.filter(t=>t&&!t.j&&t.col===tile.col).map(t=>t.num); if(sameColor.includes(tile.num-1)) score+=3; if(sameColor.includes(tile.num+1)) score+=3; if(sameColor.includes(tile.num-2)) score+=1.5; if(sameColor.includes(tile.num+2)) score+=1.5; score -= tile.num===1||tile.num===13 ? .5:0; return score; }
+function okeySuggestMove(){ const hand=okeyAllTiles(); if(!hand.length){toast('Elde taş yok.');return;} let bestIdx=0, bestVal=Infinity; hand.forEach((t,i)=>{ const sc=okeyHintScore(t,hand); if(sc<bestVal){bestVal=sc; bestIdx=i;} }); okeyEnsureSlots(); const slotIdx=OSLOTS.findIndex(t=>t&&okeyTileKey(t)===okeyTileKey(hand[bestIdx])); OSEL=slotIdx>=0?slotIdx:bestIdx; renderOkey(); toast('Öneri: işaretli taşı atmayı düşün.'); }
+function okeyComputeHighlightKeys(mode){ const hand=okeyAllTiles().filter(Boolean); const keys=new Set(); if(!hand.length) return keys; const groups={}; hand.forEach(t=>{ if(t.j||isOkeyT(t)) return; (groups[t.col]=groups[t.col]||[]).push(t.num); }); Object.entries(groups).forEach(([col,nums])=>{ nums=[...new Set(nums)].sort((a,b)=>a-b); let run=[nums[0]]; for(let i=1;i<nums.length;i++){ if(nums[i]===nums[i-1]+1){ run.push(nums[i]); } else { if(run.length>=3 && (mode!=='seri')) run.forEach(n=>keys.add(`${col}-${n}-0`)); run=[nums[i]]; } } if(run.length>=3 && (mode!=='seri')) run.forEach(n=>keys.add(`${col}-${n}-0`)); }); const sets={}; hand.forEach(t=>{ if(t.j||isOkeyT(t)) return; (sets[t.num]=sets[t.num]||[]).push(t.col); }); Object.entries(sets).forEach(([num,cols])=>{ if(cols.length>=3 && (mode!=='sirali')) cols.forEach(col=>keys.add(`${col}-${num}-0`)); }); return keys; }
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+// [removed duplicate]
+
+// Initialize enhancements immediately and after load
+initEnhancementUI();
+setTimeout(initEnhancementUI,0);
+
+// ===== ÖZEL ODA =====
+let roomType='public'; // 'public' | 'private'
+
+function setRoomType(type){
+  roomType=type;
+  document.getElementById('rtype-public').classList.toggle('active',type==='public');
+  document.getElementById('rtype-private').classList.toggle('active',type==='private');
+  document.getElementById('room-pass-field').style.display=type==='private'?'block':'none';
+}
+
+function checkJoinPassword(){
+  // Oda koduna göre şifre gerekip gerekmediğini Firebase'den kontrol et
+  const code=document.getElementById('jcode').value.trim().toUpperCase();
+  if(code.length<4||!fbDb){document.getElementById('join-pass-field').style.display='none';return;}
+  fbDb.ref('rooms/room_'+code).once('value').then(snap=>{
+    const room=snap.val();
+    if(room&&room.hasPassword){
+      document.getElementById('join-pass-field').style.display='block';
+    } else {
+      document.getElementById('join-pass-field').style.display='none';
+    }
+  });
+}
+
+// Patch quickJoin to check password for private rooms
+const _origQuickJoin=window.quickJoin;
+window.quickJoin=function(code,game,isFull){
+  if(isFull){toast('Oda dolu!');return;}
+  const name=document.getElementById('uname').value.trim();
+  if(!name){toast('Önce kullanıcı adı girin!');document.getElementById('uname').focus();return;}
+  // Check if private room
+  if(fbDb){
+    fbDb.ref('rooms/room_'+code).once('value').then(snap=>{
+      const room=snap.val();
+      if(room&&room.hasPassword){
+        // Show password prompt
+        const pass=prompt('🔒 Bu oda şifreli!\nŞifreyi girin:');
+        if(!pass){return;}
+        if(pass.trim()!==room.password){toast('❌ Yanlış şifre!');return;}
+      }
+      // Password ok or no password — join
+      sgame=game;
+      document.getElementById('jcode').value=code;
+      switchTab('jo');
+      joinRoom();
+    });
+  } else {
+    sgame=game;
+    document.getElementById('jcode').value=code;
+    switchTab('jo');
+    joinRoom();
+  }
+};
+
+// Patch joinRoom to check password when joining manually
+const _privOrigJoinRoom=joinRoom;
+joinRoom=function(){
+  const code=document.getElementById('jcode').value.trim().toUpperCase();
+  const enteredPass=document.getElementById('join-password')?.value?.trim()||'';
+  const passField=document.getElementById('join-pass-field');
+
+  if(passField&&passField.style.display!=='none'&&fbDb){
+    // Verify password first
+    fbDb.ref('rooms/room_'+code).once('value').then(snap=>{
+      const room=snap.val();
+      if(room&&room.hasPassword){
+        if(enteredPass!==room.password){
+          toast('❌ Yanlış şifre!');
+          document.getElementById('join-password').focus();
+          return;
+        }
+      }
+      _privOrigJoinRoom();
+    });
+  } else {
+    _privOrigJoinRoom();
+  }
+};
+
+// Patch publishRoom to include password info
+const _privOrigPublish=publishRoom;
+publishRoom=function(){
+  if(!fbDb||!roomCode||!curGame||!isHost)return;
+  const pass=document.getElementById('room-password')?.value?.trim()||'';
+  const isPrivate=roomType==='private';
+  myRoomRef=fbDb.ref('rooms/room_'+roomCode);
+  const data={
+    code:roomCode,
+    game:curGame,
+    hostName:myName,
+    maxPlayers:maxPlayers,
+    playerCount:1,
+    createdAt:firebase.database.ServerValue.TIMESTAMP,
+    isPrivate:isPrivate,
+    hasPassword:isPrivate&&pass.length>0
+  };
+  if(isPrivate&&pass.length>0) data.password=pass;
+  myRoomRef.set(data);
+  myRoomRef.onDisconnect().remove();
+};
+
+// Re-init with patched publishRoom (override the FB patch chain)
+
+// ============================================================
+// FIREBASE AUTH
+// ============================================================
+let fbAuth=null;
+function initAuth(){
+  try{
+    fbAuth=firebase.auth();
+    fbAuth.onAuthStateChanged(user=>{
+      if(user){
+        currentUser=user;
+        // Kullanıcı adını bul: DB → localStorage → email prefix
+        const emailPrefix=user.email?user.email.split('@')[0]:'Oyuncu';
+        const localName=localStorage.getItem('username_'+user.uid)||'';
+        function applyUserName(dname){
+          currentUser._dname=dname;
+          const inp=document.getElementById('uname');
+          if(inp){inp.value=dname;inp.setAttribute('readonly','');inp.style.opacity='0.7';inp.style.cursor='default';}
+          const av=document.getElementById('auth-avatar-home');
+          const un=document.getElementById('auth-username-home');
+          const em=document.getElementById('auth-email-home');
+          if(av)av.textContent=dname[0]?.toUpperCase()||'?';
+          if(un)un.textContent=dname;
+          if(em)em.textContent=user.email||'';
+          showSc('home');
+        }
+        if(fbDb){
+          fbDb.ref('users/'+user.uid).once('value')
+            .then(snap=>{
+              const data=snap.val();
+              const dname=data?.username||localName||emailPrefix;
+              // localStorage'ı güncelle
+              if(data?.username) try{localStorage.setItem('username_'+user.uid,data.username);}catch(e){}
+              applyUserName(dname);
+            })
+            .catch(()=>applyUserName(localName||emailPrefix));
+        } else {
+          applyUserName(localName||emailPrefix);
+        }
+      } else {
+        currentUser=null;
+        showSc('auth');
+      }
+    });
+  }catch(e){console.error('Auth:',e);showSc('home');}
+}
+function switchAuthTab(tab){
+  document.getElementById('auth-tab-login').classList.toggle('active',tab==='login');
+  document.getElementById('auth-tab-register').classList.toggle('active',tab==='register');
+  document.getElementById('auth-login-form').style.display=tab==='login'?'block':'none';
+  document.getElementById('auth-register-form').style.display=tab==='register'?'block':'none';
+  document.getElementById('auth-login-err').classList.remove('show');
+  document.getElementById('auth-reg-err').classList.remove('show');
+}
+function showAuthErr(id,msg){const el=document.getElementById(id);if(el){el.textContent=msg;el.classList.add('show');}}
+function authErrMsg(code){
+  return({'auth/user-not-found':'Bu e-posta ile hesap bulunamadı.','auth/wrong-password':'Şifre yanlış.','auth/invalid-email':'Geçersiz e-posta.','auth/email-already-in-use':'Bu e-posta zaten kayıtlı.','auth/weak-password':'Şifre en az 6 karakter olmalı.','auth/too-many-requests':'Çok fazla deneme. Lütfen bekleyin.','auth/invalid-credential':'E-posta veya şifre hatalı.','auth/network-request-failed':'Bağlantı hatası.'}[code]||'Bir hata oluştu.');
+}
+function authLogin(){
+  if(!fbAuth){showAuthErr('auth-login-err','Bağlantı hatası. Sayfayı yenileyin.');return;}
+  const email=document.getElementById('auth-login-email').value.trim();
+  const pass=document.getElementById('auth-login-pass').value;
+  if(!email||!pass){showAuthErr('auth-login-err','E-posta ve şifre gerekli.');return;}
+  const btn=document.getElementById('auth-login-btn');
+  btn.disabled=true;btn.querySelector('span').textContent='Giriş yapılıyor...';
+  fbAuth.signInWithEmailAndPassword(email,pass)
+    .then(()=>{document.getElementById('auth-login-err').classList.remove('show');})
+    .catch(e=>{showAuthErr('auth-login-err',authErrMsg(e.code));btn.disabled=false;btn.querySelector('span').textContent='Giriş Yap →';});
+}
+function authRegister(){
+  if(!fbAuth){showAuthErr('auth-reg-err','Bağlantı hatası. Sayfayı yenileyin.');return;}
+  const name=document.getElementById('auth-reg-name').value.trim();
+  const email=document.getElementById('auth-reg-email').value.trim();
+  const pass=document.getElementById('auth-reg-pass').value;
+  if(!name){showAuthErr('auth-reg-err','Kullanıcı adı gerekli.');return;}
+  if(name.length<2){showAuthErr('auth-reg-err','Kullanıcı adı en az 2 karakter olmalı.');return;}
+  if(!email||!pass){showAuthErr('auth-reg-err','E-posta ve şifre gerekli.');return;}
+  const btn=document.getElementById('auth-reg-btn');
+  btn.disabled=true;btn.querySelector('span').textContent='Kaydediliyor...';
+  // Önce hesabı oluştur
+  fbAuth.createUserWithEmailAndPassword(email,pass)
+    .then(cred=>{
+      // Kullanıcı adını localStorage'a da kaydet (DB erişimi olmasa bile çalışsın)
+      try{localStorage.setItem('username_'+cred.user.uid, name);}catch(e){}
+      // DB'ye kaydetmeyi dene (başarısız olursa sessizce geç)
+      if(fbDb){
+        fbDb.ref('users/'+cred.user.uid).set({
+          username:name, email:email,
+          createdAt:firebase.database.ServerValue.TIMESTAMP
+        }).catch(()=>{});
+      }
+      // onAuthStateChanged zaten ana sayfaya yönlendirir
+    })
+    .catch(e=>{
+      showAuthErr('auth-reg-err',authErrMsg(e.code));
+      btn.disabled=false;
+      btn.querySelector('span').textContent='Kayıt Ol →';
+    });
+}
+function authLogout(){
+  if(!fbAuth)return;
+  // Önce oyun bağlantılarını kapat
+  gameActive=false;
+  hostConns.forEach(c=>{try{c.close();}catch(e){}});hostConns=[];
+  if(myConn){try{myConn.close();}catch(e){}myConn=null;}
+  if(myPeer){try{myPeer.destroy();}catch(e){}myPeer=null;}
+  players=[];
+  // Sonra çıkış yap - onAuthStateChanged showSc('auth') çağırır
+  fbAuth.signOut().catch(e=>console.error('Logout error:',e));
+}
+function authGuest(){
+  currentUser=null;
+  const inp=document.getElementById('uname');
+  if(inp){inp.value='';inp.removeAttribute('readonly');inp.style.opacity='1';inp.style.cursor='';}
+  const av=document.getElementById('auth-avatar-home');
+  const un=document.getElementById('auth-username-home');
+  const em=document.getElementById('auth-email-home');
+  const btn=document.getElementById('auth-bar-btn');
+  if(av)av.textContent='👤';
+  if(un)un.textContent='Misafir';
+  if(em)em.textContent='Kayıt olmadan oynuyorsun';
+  if(btn)btn.textContent='Giriş Yap';
+  showSc('home');
+}
+function authBarAction(){
+  if(currentUser) authLogout();
+  else showSc('auth');
+}
+
+const FB_CONFIG = {
+  apiKey: "AIzaSyAIR7iRIvr_3HhSiwo0czBFC1gKmSlXtt4",
+  authDomain: "oyun-salonu-5cc51.firebaseapp.com",
+  databaseURL: "https://oyun-salonu-5cc51-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "oyun-salonu-5cc51",
+  storageBucket: "oyun-salonu-5cc51.firebasestorage.app",
+  messagingSenderId: "843650255054",
+  appId: "1:843650255054:web:dabccce0d20cfb4df4689f"
+};
+
+let fbDb=null, myRoomRef=null;
+
+function initFirebase(){
+  try{
+    if(!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
+    fbDb=firebase.database();
+    document.getElementById('fb-status-txt').textContent='Bağlandı';
+    // Realtime listener for rooms
+    fbDb.ref('rooms').on('value', snap=>{
+      renderRooms(snap.val()||{});
+    });
+    // Init auth after DB ready
+    initAuth();
+  }catch(e){
+    console.error('Firebase:',e);
+    document.getElementById('fb-status-txt').textContent='Bağlantı hatası';
+    document.getElementById('rooms-list').innerHTML='<div class="rooms-empty">Oda listesi yüklenemedi.</div>';
+    showSc('home'); // Fallback
+  }
+}
+
+function loadRooms(){
+  if(!fbDb){return;}
+  fbDb.ref('rooms').once('value').then(snap=>renderRooms(snap.val()||{}));
+}
+
+const GAME_ICONS={'dama':'🔴','chess':'♟','tavla':'🎲','uno':'🃏','okey':'🀄'};
+const GAME_LABELS_TR={'dama':'Dama','chess':'Satranç','tavla':'Tavla','uno':'Uno','okey':'Okey'};
+
+function renderRooms(data){
+  const list=document.getElementById('rooms-list');
+  if(!list)return;
+  const now=Date.now();
+  const rooms=Object.entries(data)
+    .filter(([k,v])=>v&&v.code&&(now-(v.createdAt||0))<300000&&!v.isPrivate)
+    .sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
+
+  if(rooms.length===0){
+    list.innerHTML='<div class="rooms-empty">Henüz açık oda yok.<br>İlk odayı sen aç!</div>';
+    return;
+  }
+  list.innerHTML='';
+  rooms.forEach(([key,room])=>{
+    const filled=room.playerCount||1;
+    const max=room.maxPlayers||2;
+    const isFull=filled>=max;
+    const card=document.createElement('div');
+    card.className='room-card'+(isFull?' full':'');
+    let dots='';
+    for(let i=0;i<max;i++) dots+=`<div class="room-dot${i<filled?' filled':''}"></div>`;
+    const safeCode=String(room.code||'').replace(/[^A-Z0-9]/g,'');
+    const safeGame=String(room.game||'').replace(/[^a-z]/g,'');
+    card.innerHTML=`
+      <div class="room-game-icon">${GAME_ICONS[room.game]||'🎮'}</div>
+      <div class="room-info">
+        <div class="room-game-name">${GAME_LABELS_TR[room.game]||esc(room.game)}</div>
+        <div class="room-host">Host: ${esc(room.hostName||'?')} &nbsp;·&nbsp; Kod: ${safeCode}</div>
+      </div>
+      <div class="room-players">
+        <div class="room-player-dots">${dots}</div>
+        <div class="room-player-txt">${filled}/${max}</div>
+      </div>
+      <button class="room-join-btn${isFull?' disabled':''}" onclick="quickJoin('${safeCode}','${safeGame}',${isFull})">${isFull?'Dolu':'Katıl →'}</button>
+    `;
+    list.appendChild(card);
+  });
+}
+
+function quickJoin(code,game,isFull){
+  if(isFull){toast('Oda dolu!');return;}
+  const name=document.getElementById('uname').value.trim();
+  if(!name){toast('Önce kullanıcı adı girin!');document.getElementById('uname').focus();return;}
+  // Fill in join form and connect
+  sgame=game;
+  document.getElementById('jcode').value=code;
+  switchTab('jo');
+  joinRoom();
+}
+
+function publishRoom(){
+  if(!fbDb||!roomCode||!curGame||!isHost)return;
+  myRoomRef=fbDb.ref('rooms/room_'+roomCode);
+  myRoomRef.set({
+    code:roomCode,
+    game:curGame,
+    hostName:myName,
+    maxPlayers:maxPlayers,
+    playerCount:1,
+    createdAt:firebase.database.ServerValue.TIMESTAMP
+  });
+  myRoomRef.onDisconnect().remove();
+}
+
+function updateRoomCount(){
+  if(!myRoomRef||!isHost)return;
+  myRoomRef.update({playerCount:players.length});
+}
+
+function removeRoom(){
+  if(myRoomRef){try{myRoomRef.remove();}catch(e){}myRoomRef=null;}
+}
+
+// Patch createRoom to publish to Firebase after peer opens
+const _fbOrigCreateRoom=createRoom;
+createRoom=function(){
+  roomType=roomType||'public'; // ensure roomType set
+  _fbOrigCreateRoom();
+  // Wait for peer to open and roomCode to be set, then publish
+  let attempts=0;
+  const t=setInterval(()=>{
+    attempts++;
+    if(roomCode&&isHost&&myPeer){
+      clearInterval(t);
+      setTimeout(()=>{if(myPeer&&roomCode)publishRoom();},800);
+    }
+    if(attempts>30)clearInterval(t);
+  },200);
+};
+
+// Patch leaveHome to remove room from Firebase
+const _fbOrigLeaveHome=leaveHome;
+leaveHome=function(){
+  removeRoom();
+  _fbOrigLeaveHome();
+  setTimeout(updateProfileUI,0);
+};
+
+// Patch updateLobby to sync player count
+const _fbOrigUpdateLobby=updateLobby;
+updateLobby=function(){
+  _fbOrigUpdateLobby();
+  if(isHost)updateRoomCount();
+};
+
+// Remove room when game starts (oda doldu, artık listede gözükmesin)
+const _fbOrigHostStart=hostStartGame;
+hostStartGame=function(){
+  removeRoom();
+  _fbOrigHostStart();
+};
+
+// Init
+initFirebase();
+// showSc handled by auth state change
+
+// ============================================================
+// YÜZEN TEMA PANELİ JS
+// ============================================================
+const THEMES_LIST=[
+  {id:'classic',label:'🟢 Klasik Kahvehane'},
+  {id:'night',  label:'🌙 Gece / Mor'},
+  {id:'emerald',label:'💚 Zümrüt'},
+  {id:'royal',  label:'👑 Royal Altın'},
+  {id:'casino', label:'🎰 Retro Casino'},
+  {id:'light',  label:'☀️ Açık Tema'},
+];
+function toggleThemePanel(){
+  const panel=document.getElementById('float-theme-panel');
+  const list=document.getElementById('float-theme-list');
+  if(!panel)return;
+  const isOpen=panel.style.display!=='none';
+  if(!isOpen){
+    list.innerHTML='';
+    THEMES_LIST.forEach(t=>{
+      const btn=document.createElement('button');
+      btn.textContent=t.label;
+      const isActive=currentTheme===t.id;
+      btn.style.cssText='background:'+(isActive?'rgba(201,168,76,0.15)':'transparent')+';border:1px solid '+(isActive?'var(--gold)':'transparent')+';border-radius:6px;color:var(--text);font-family:"Crimson Pro",serif;font-size:0.85rem;padding:7px 10px;cursor:pointer;text-align:left;width:100%;transition:all 0.15s;';
+      btn.onmouseover=()=>{if(currentTheme!==t.id)btn.style.background='rgba(201,168,76,0.08)';};
+      btn.onmouseout=()=>{if(currentTheme!==t.id)btn.style.background='transparent';};
+      btn.onclick=()=>{applyTheme(t.id);toggleThemePanel();};
+      list.appendChild(btn);
+    });
+    panel.style.display='block';
+    setTimeout(()=>document.addEventListener('click',_closePanelOutside,{once:true}),50);
+  }else{
+    panel.style.display='none';
+  }
+}
+function _closePanelOutside(e){
+  const wrap=document.getElementById('float-theme-btn');
+  if(wrap&&!wrap.contains(e.target)){
+    const p=document.getElementById('float-theme-panel');
+    if(p)p.style.display='none';
+  }else if(wrap&&wrap.contains(e.target)){
+    // still inside, re-add listener
+    setTimeout(()=>document.addEventListener('click',_closePanelOutside,{once:true}),50);
+  }
+}
+
+</script>
+
+<!-- YÜZEN TEMA BUTONU - Her ekranda görünür -->
+<div id="float-theme-btn" style="position:fixed;bottom:20px;right:20px;z-index:9000;display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+  <div id="float-theme-panel" style="display:none;background:var(--s);border:1px solid var(--gold);border-radius:12px;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,0.4);min-width:180px;">
+    <div style="font-family:'Cinzel',serif;font-size:0.65rem;color:var(--muted);letter-spacing:0.2em;text-transform:uppercase;margin-bottom:8px;">Tema Seç</div>
+    <div id="float-theme-list" style="display:flex;flex-direction:column;gap:4px;"></div>
+  </div>
+  <button onclick="toggleThemePanel()" style="width:42px;height:42px;border-radius:50%;background:var(--s);border:1px solid var(--gold);color:var(--gold);font-size:1.1rem;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all 0.2s;display:flex;align-items:center;justify-content:center;" title="Tema değiştir">🎨</button>
+</div>
+
+</body>
+</html>
